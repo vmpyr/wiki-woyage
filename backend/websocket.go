@@ -5,15 +5,10 @@ import (
 	"net/http"
 	"sync"
 
+	"wiki-woyage/structs"
+
 	"github.com/gorilla/websocket"
 )
-
-type WebSocketMessage struct {
-	Type       string `json:"type"`
-	PlayerName string `json:"playerName,omitempty"`
-	LobbyID    string `json:"lobbyID,omitempty"`
-	PlayerID   string `json:"playerID,omitempty"`
-}
 
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool { return true },
@@ -31,7 +26,7 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	defer conn.Close()
 
 	for {
-		var msg WebSocketMessage
+		var msg structs.WebSocketMessage
 		err := conn.ReadJSON(&msg)
 		if err != nil {
 			log.Println("WebSocket Read Error:", err)
@@ -103,7 +98,7 @@ func HandleLeaveLobby(conn *websocket.Conn, lobbyID string, playerID string) {
 }
 
 func SendResponse(conn *websocket.Conn, msgType, lobbyID, playerID, playerName string) {
-	response := WebSocketMessage{
+	response := structs.WebSocketMessage{
 		Type:       msgType,
 		LobbyID:    lobbyID,
 		PlayerID:   playerID,

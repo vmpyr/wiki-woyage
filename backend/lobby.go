@@ -3,55 +3,44 @@ package main
 import (
 	"errors"
 	"log"
-	"math/rand"
+	"os"
+	"strconv"
 	"sync"
+	"wiki-woyage/utils"
 )
 
-const MAX_PLAYERS_PER_LOBBY = 8
-const MAX_LOBBIES = 100
-const MAX_PLAYER_NAME_LENGTH = 20
-const MIN_PLAYER_NAME_LENGTH = 3
+func GetWWEnvVars(key string, def int) int {
+	val, ok := os.LookupEnv(key)
+	if !ok || val == "" {
+		return def
+	} else {
+		if s, err := strconv.Atoi(val); err == nil {
+			return s
+		} else {
+			return def
+		}
+	}
+}
 
 var (
-	activeLobbies     = make(map[string][]string)
-	activePlayerNames = make(map[string]string)
-	activePlayerIDs   = make(map[string]string)
-	mutex             sync.RWMutex
+	MAX_PLAYERS_PER_LOBBY  int = GetWWEnvVars("WW_MAX_PLAYERS_PER_LOBBY", 8)
+	MAX_LOBBIES            int = GetWWEnvVars("WW_MAX_LOBBIES", 100)
+	MAX_PLAYER_NAME_LENGTH int = GetWWEnvVars("WW_MAX_PLAYER_NAME_LENGTH", 20)
+	MIN_PLAYER_NAME_LENGTH int = GetWWEnvVars("WW_MIN_PLAYER_NAME_LENGTH", 3)
 )
 
-func generateID(characters string, length uint8) string {
-	b := make([]byte, length)
-	for i := range b {
-		b[i] = characters[rand.Intn(len(characters))]
-	}
-	return string(b)
-}
-
-func generateLobbyID() string {
-	const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	for {
-		lobbyID := generateID(characters, 5)
-		if _, exists := activeLobbies[lobbyID]; !exists {
-			return lobbyID
-		}
-	}
-}
-
-func generatePlayerID() string {
-	const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-	for {
-		playerID := generateID(characters, 25)
-		if _, exists := activePlayerIDs[playerID]; !exists {
-			return playerID
-		}
-	}
-}
+var (
+	lobbies     = make(map[string][]string) // lobbyID -> player names
+	playerNames = make(map[string]string)   // playerName -> playerID
+	playerIDs   = make(map[string]string)   // playerID -> playerName
+	mutex       sync.RWMutex
+)
 
 func CreateLobby(playerName string) (string, string, error) {
 	mutex.Lock()
 	defer mutex.Unlock()
 
-	if len(activeLobbies) >= MAX_LOBBIES {
+	if len(lobbies) >= MAX_LOBBIES {
 		log.Println("Max lobbies reached")
 		return "", "", errors.New("max lobbies reached")
 	}
@@ -59,17 +48,17 @@ func CreateLobby(playerName string) (string, string, error) {
 		log.Printf("Player name %s is invalid", playerName)
 		return "", "", errors.New("player name is invalid")
 	}
-	if _, exists := activePlayerNames[playerName]; exists {
+	if _, exists := playerNames[playerName]; exists {
 		log.Printf("Player name %s already in a lobby", playerName)
 		return "", "", errors.New("player name already in a lobby")
 	}
 
-	lobbyID := generateLobbyID()
-	activeLobbies[lobbyID] = []string{playerName}
+	lobbyID := utils.GenerateLobbyID(&lobbies)
+	lobbies[lobbyID] = []string{playerName}
 
-	playerID := generatePlayerID()
-	activePlayerNames[playerName] = playerID
-	activePlayerIDs[playerID] = playerName
+	playerID := utils.GeneratePlayerID(&playerIDs)
+	playerNames[playerName] = playerID
+	playerIDs[playerID] = playerName
 
 	log.Printf("Lobby %s created by %s", lobbyID, playerName)
 	return lobbyID, playerID, nil
@@ -79,12 +68,12 @@ func JoinLobby(lobbyID string, playerName string) (string, error) {
 	mutex.Lock()
 	defer mutex.Unlock()
 
-	if _, exists := activePlayerNames[playerName]; exists {
+	if _, exists := playerNames[playerName]; exists {
 		log.Println("Player already in a lobby")
 		return "", errors.New("player already in a lobby")
 	}
 
-	players, exists := activeLobbies[lobbyID]
+	players, exists := lobbies[lobbyID]
 	if !exists {
 		log.Printf("Lobby %s not found", lobbyID)
 		return "", errors.New("lobby not found")
@@ -94,10 +83,10 @@ func JoinLobby(lobbyID string, playerName string) (string, error) {
 		return "", errors.New("lobby is full")
 	}
 
-	activeLobbies[lobbyID] = append(players, playerName)
-	playerID := generatePlayerID()
-	activePlayerNames[playerName] = playerID
-	activePlayerIDs[playerID] = playerName
+	lobbies[lobbyID] = append(players, playerName)
+	playerID := utils.GeneratePlayerID(&playerIDs)
+	playerNames[playerName] = playerID
+	playerIDs[playerID] = playerName
 
 	log.Printf("Player %s joined lobby %s", playerName, lobbyID)
 	return playerID, nil
@@ -107,12 +96,12 @@ func LeaveLobby(lobbyID string, playerID string) error {
 	mutex.Lock()
 	defer mutex.Unlock()
 
-	players, exists := activeLobbies[lobbyID]
+	players, exists := lobbies[lobbyID]
 	if !exists {
 		log.Printf("Lobby %s not found", lobbyID)
 		return errors.New("lobby not found")
 	}
-	playerName, exists := activePlayerIDs[playerID]
+	playerName, exists := playerIDs[playerID]
 	if !exists {
 		log.Printf("PlayerID %s not found", playerID)
 		return errors.New("player not found")
@@ -120,13 +109,13 @@ func LeaveLobby(lobbyID string, playerID string) error {
 
 	for i, player := range players {
 		if player == playerName {
-			activeLobbies[lobbyID] = append(players[:i], players[i+1:]...)
-			delete(activePlayerNames, playerName)
-			delete(activePlayerIDs, playerID)
+			lobbies[lobbyID] = append(players[:i], players[i+1:]...)
+			delete(playerNames, playerName)
+			delete(playerIDs, playerID)
 			log.Printf("Player %s left lobby %s", playerName, lobbyID)
 
-			if len(activeLobbies[lobbyID]) == 0 {
-				delete(activeLobbies, lobbyID)
+			if len(lobbies[lobbyID]) == 0 {
+				delete(lobbies, lobbyID)
 				log.Printf("Lobby %s deleted", lobbyID)
 			}
 			break
