@@ -1,4 +1,4 @@
-package backend
+package main
 
 import (
 	"errors"
@@ -7,10 +7,10 @@ import (
 	"sync"
 )
 
-const MaxPlayersPerLobby = 8
-const MaxLobbies = 100
-const MaxPlayerNameLength = 20
-const MinPlayerNameLength = 3
+const MAX_PLAYERS_PER_LOBBY = 8
+const MAX_LOBBIES = 100
+const MAX_PLAYER_NAME_LENGTH = 20
+const MIN_PLAYER_NAME_LENGTH = 3
 
 var (
 	activeLobbies     = make(map[string][]string)
@@ -51,11 +51,11 @@ func CreateLobby(playerName string) (string, string, error) {
 	mutex.Lock()
 	defer mutex.Unlock()
 
-	if len(activeLobbies) >= MaxLobbies {
+	if len(activeLobbies) >= MAX_LOBBIES {
 		log.Println("Max lobbies reached")
 		return "", "", errors.New("max lobbies reached")
 	}
-	if len(playerName) < MinPlayerNameLength || len(playerName) > MaxPlayerNameLength {
+	if len(playerName) < MIN_PLAYER_NAME_LENGTH || len(playerName) > MAX_PLAYER_NAME_LENGTH {
 		log.Printf("Player name %s is invalid", playerName)
 		return "", "", errors.New("player name is invalid")
 	}
@@ -89,7 +89,7 @@ func JoinLobby(lobbyID string, playerName string) (string, error) {
 		log.Printf("Lobby %s not found", lobbyID)
 		return "", errors.New("lobby not found")
 	}
-	if len(players) >= MaxPlayersPerLobby {
+	if len(players) >= MAX_PLAYERS_PER_LOBBY {
 		log.Printf("Lobby %s is full", lobbyID)
 		return "", errors.New("lobby is full")
 	}
