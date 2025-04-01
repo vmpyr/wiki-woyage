@@ -17,8 +17,8 @@ func GetGame(gameID string) (*st.Game, error) {
 	gameMutex.RLock()
 	defer gameMutex.RUnlock()
 
-	game, exists := games[gameID]
-	if !exists {
+	game, ok := games[gameID]
+	if !ok {
 		return nil, errors.New("game not found")
 	}
 
@@ -29,8 +29,8 @@ func StartNewGame(lobbyID string, settings st.GameSettings) (string, error) {
 	gameMutex.Lock()
 	defer gameMutex.Unlock()
 
-	if _, exists := lobbiesWithGames[lobbyID]; exists {
-		return "", errors.New("game already exists for this lobby")
+	if _, ok := lobbiesWithGames[lobbyID]; ok {
+		return "", errors.New("game already ok for this lobby")
 	}
 
 	gameID := utils.GenerateGameID(&games)
@@ -57,9 +57,9 @@ func StartNewGame(lobbyID string, settings st.GameSettings) (string, error) {
 
 func JoinGame(lobbyID, playerID string) (string, error) {
 	gameMutex.RLock()
-	gameID, exists := lobbiesWithGames[lobbyID]
+	gameID, ok := lobbiesWithGames[lobbyID]
 	gameMutex.RUnlock()
-	if !exists {
+	if !ok {
 		return "", errors.New("no game found for this lobby")
 	}
 
@@ -71,7 +71,7 @@ func JoinGame(lobbyID, playerID string) (string, error) {
 	(*game).GameStructMutex.Lock()
 	defer (*game).GameStructMutex.Unlock()
 
-	if playerData, exists := (*game).PlayerData[playerID]; exists {
+	if playerData, ok := (*game).PlayerData[playerID]; ok {
 		if !playerData.InGame {
 			return "", errors.New("player already in game")
 		} else {
@@ -102,7 +102,7 @@ func VoteToEndGame(gameID, playerID string) error {
 	(*game).GameStructMutex.Lock()
 	defer (*game).GameStructMutex.Unlock()
 
-	if _, exists := (*game).PlayerData[playerID]; !exists {
+	if _, ok := (*game).PlayerData[playerID]; !ok {
 		return errors.New("player not found in game to vote")
 	}
 

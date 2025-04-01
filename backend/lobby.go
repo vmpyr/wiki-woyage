@@ -48,7 +48,7 @@ func CreateLobby(playerName string) (string, string, error) {
 		log.Printf("Player name %s is invalid", playerName)
 		return "", "", errors.New("player name is invalid")
 	}
-	if _, exists := playerNames[playerName]; exists {
+	if _, ok := playerNames[playerName]; ok {
 		log.Printf("Player name %s already in a lobby", playerName)
 		return "", "", errors.New("player name already in a lobby")
 	}
@@ -68,13 +68,13 @@ func JoinLobby(lobbyID string, playerName string) (string, error) {
 	mutex.Lock()
 	defer mutex.Unlock()
 
-	if _, exists := playerNames[playerName]; exists {
+	if _, ok := playerNames[playerName]; ok {
 		log.Println("Player already in a lobby")
 		return "", errors.New("player already in a lobby")
 	}
 
-	players, exists := lobbies[lobbyID]
-	if !exists {
+	players, ok := lobbies[lobbyID]
+	if !ok {
 		log.Printf("Lobby %s not found", lobbyID)
 		return "", errors.New("lobby not found")
 	}
@@ -96,13 +96,13 @@ func LeaveLobby(lobbyID string, playerID string) error {
 	mutex.Lock()
 	defer mutex.Unlock()
 
-	players, exists := lobbies[lobbyID]
-	if !exists {
+	players, ok := lobbies[lobbyID]
+	if !ok {
 		log.Printf("Lobby %s not found", lobbyID)
 		return errors.New("lobby not found")
 	}
-	playerName, exists := playerIDs[playerID]
-	if !exists {
+	playerName, ok := playerIDs[playerID]
+	if !ok {
 		log.Printf("PlayerID %s not found", playerID)
 		return errors.New("player not found")
 	}

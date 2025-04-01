@@ -17,7 +17,7 @@ func GenerateLobbyID(lobbies *map[string][]string) string {
 	const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	for {
 		lobbyID := GenerateID(characters, 5)
-		if _, exists := (*lobbies)[lobbyID]; !exists {
+		if _, ok := (*lobbies)[lobbyID]; !ok {
 			return lobbyID
 		}
 	}
@@ -27,7 +27,7 @@ func GeneratePlayerID(playerIDs *map[string]string) string {
 	const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 	for {
 		playerID := GenerateID(characters, 25)
-		if _, exists := (*playerIDs)[playerID]; !exists {
+		if _, ok := (*playerIDs)[playerID]; !ok {
 			return playerID
 		}
 	}
@@ -37,7 +37,7 @@ func GenerateGameID(games *map[string]*structs.Game) string {
 	const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 	for {
 		gameID := GenerateID(characters, 25)
-		if _, exists := (*games)[gameID]; !exists {
+		if _, ok := (*games)[gameID]; !ok {
 			return gameID
 		}
 	}
