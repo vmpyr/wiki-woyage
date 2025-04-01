@@ -30,7 +30,7 @@ func SendResponse(conn *websocket.Conn, responseType string, playerID string, pl
 }
 
 func HandleCreatePlayer(conn *websocket.Conn, playerName string) {
-	player, err := CreatePlayer(playerName, conn)
+	player, err := CreatePlayer(conn, playerName)
 	if err != nil {
 		SendError(conn, err.Error())
 		return

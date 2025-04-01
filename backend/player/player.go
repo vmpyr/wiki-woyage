@@ -21,7 +21,7 @@ var (
 	playerMutex      sync.RWMutex
 )
 
-func CreatePlayer(playerName string, conn *websocket.Conn) (*st.Player, error) {
+func CreatePlayer(conn *websocket.Conn, playerName string) (*st.Player, error) {
 	if len(playerName) < MIN_PLAYER_NAME_LENGTH || len(playerName) > MAX_PLAYER_NAME_LENGTH {
 		log.Printf("Player name %s is invalid", playerName)
 		return nil, errors.New("player name is invalid")
