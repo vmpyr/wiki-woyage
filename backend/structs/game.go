@@ -5,29 +5,30 @@ import (
 )
 
 type Game struct {
-	LobbyID    string
-	PlayerData map[string]PlayerData
-	GameState  GameState
-	Settings   GameSettings
-	VotesToEnd map[string]bool
-	GameMutex  sync.Mutex
+	LobbyID         string
+	PlayerData      map[string]PlayerData // playerID -> PlayerData
+	RoundData       RoundData
+	Settings        GameSettings
+	VotesToEnd      map[string]bool // playerID -> vote
+	Finished        bool
+	GameStructMutex sync.Mutex
 }
 
 type PlayerData struct {
-	PlayerID       string
-	InGame         bool
-	CurrentArticle map[string]string   // { "title": "Article Title", "slug": "article-slug" }
-	ArticleTree    []map[string]string // [{ "title": "Article Title", "slug": "article-slug" }, ...]
-	HasFinished    bool
-	Score          int
+	PlayerID         string
+	InGame           bool
+	CurrentArticle   map[string]string   // { "title": "Article Title", "slug": "article-slug" }
+	ArticleTree      []map[string]string // [{ "title": "Article Title", "slug": "article-slug" }, ...]
+	HasFinishedRound bool
+	Score            float64
 }
 
-type GameState struct {
-	TimeElapsed        int
+type RoundData struct {
 	RoundNumber        int
+	TimeElapsed        int
 	OriginArticle      map[string]string // { "title": "Article Title", "slug": "article-slug" }
 	DestinationArticle map[string]string // { "title": "Article Title", "slug": "article-slug" }
-	Finished           bool              // If not true, don't allow game settings to change
+	Finished           bool              // For checking if new round should be started
 }
 
 type GameSettings struct {
