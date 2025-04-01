@@ -7,7 +7,7 @@ import (
 )
 
 func SendError(conn *websocket.Conn, errorMessage string) {
-	response := st.PlayerWSResponse{
+	response := st.WebSocketResponse{
 		Type:         "error",
 		ErrorMessage: errorMessage,
 	}
@@ -18,7 +18,7 @@ func SendError(conn *websocket.Conn, errorMessage string) {
 }
 
 func SendResponse(conn *websocket.Conn, responseType string, playerID string, playerName string) {
-	response := st.PlayerWSResponse{
+	response := st.WebSocketResponse{
 		Type:       responseType,
 		PlayerID:   playerID,
 		PlayerName: playerName,
