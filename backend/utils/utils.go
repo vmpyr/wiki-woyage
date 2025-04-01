@@ -2,7 +2,9 @@ package utils
 
 import (
 	"math/rand"
-	"wiki-woyage/structs"
+	"os"
+	"strconv"
+	st "wiki-woyage/structs"
 )
 
 func GenerateID(characters string, length uint8) string {
@@ -13,7 +15,7 @@ func GenerateID(characters string, length uint8) string {
 	return string(b)
 }
 
-func GenerateLobbyID(lobbies *map[string][]string) string {
+func GenerateLobbyID(lobbies *map[string]*st.Lobby) string {
 	const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	for {
 		lobbyID := GenerateID(characters, 5)
@@ -23,22 +25,35 @@ func GenerateLobbyID(lobbies *map[string][]string) string {
 	}
 }
 
-func GeneratePlayerID(playerIDs *map[string]string) string {
+func GeneratePlayerID(players *map[string]*st.Player) string {
 	const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 	for {
 		playerID := GenerateID(characters, 25)
-		if _, ok := (*playerIDs)[playerID]; !ok {
+		if _, ok := (*players)[playerID]; !ok {
 			return playerID
 		}
 	}
 }
 
-func GenerateGameID(games *map[string]*structs.Game) string {
+func GenerateGameID(games *map[string]*st.Game) string {
 	const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 	for {
 		gameID := GenerateID(characters, 25)
 		if _, ok := (*games)[gameID]; !ok {
 			return gameID
+		}
+	}
+}
+
+func GetWWEnvVars(key string, def int) int {
+	val, ok := os.LookupEnv(key)
+	if !ok || val == "" {
+		return def
+	} else {
+		if s, err := strconv.Atoi(val); err == nil {
+			return s
+		} else {
+			return def
 		}
 	}
 }
