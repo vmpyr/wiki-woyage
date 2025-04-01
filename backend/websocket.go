@@ -35,9 +35,9 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 		case "create_player":
 			player.HandleCreatePlayer(conn, msg.PlayerName)
 		case "create_lobby":
-			lobby.HandleCreateLobby(conn, msg.PlayerName)
+			lobby.HandleCreateLobby(conn, msg.PlayerID)
 		case "join_lobby":
-			lobby.HandleJoinLobby(conn, msg.LobbyID, msg.PlayerName)
+			lobby.HandleJoinLobby(conn, msg.LobbyID, msg.PlayerID)
 		case "leave_lobby":
 			lobby.HandleLeaveLobby(conn, msg.LobbyID, msg.PlayerID)
 		default:
