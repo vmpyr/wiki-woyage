@@ -5,6 +5,8 @@ import (
 	"os"
 	"strconv"
 	st "wiki-woyage/structs"
+
+	"github.com/gorilla/websocket"
 )
 
 func GenerateID(characters string, length uint8) string {
@@ -55,5 +57,23 @@ func GetWWEnvVars(key string, def int) int {
 		} else {
 			return def
 		}
+	}
+}
+
+func SendError(conn *websocket.Conn, errorMessage string) {
+	response := st.WebSocketResponse{
+		Type:         "error",
+		ErrorMessage: errorMessage,
+	}
+	err := conn.WriteJSON(response)
+	if err != nil {
+		conn.Close()
+	}
+}
+
+func SendResponse(conn *websocket.Conn, response st.WebSocketResponse) {
+	err := conn.WriteJSON(response)
+	if err != nil {
+		conn.Close()
 	}
 }
