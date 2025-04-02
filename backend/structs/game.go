@@ -2,28 +2,34 @@ package structs
 
 import (
 	"sync"
+
+	"github.com/gorilla/websocket"
 )
 
 type Game struct {
+	GameID          string
 	LobbyID         string
-	PlayerData      map[string]PlayerData // playerID -> PlayerData
+	GamePlayerData  map[string]GamePlayerData // playerID -> PlayerData
 	RoundData       RoundData
 	Settings        GameSettings
-	VotesToEnd      map[string]bool // playerID -> vote
 	Finished        bool
+	Conn            *websocket.Conn
 	GameStructMutex sync.Mutex
 }
 
-type PlayerData struct {
+type GamePlayerData struct {
+	GameID           string
 	PlayerID         string
 	InGame           bool
 	CurrentArticle   map[string]string   // { "title": "Article Title", "slug": "article-slug" }
 	ArticleTree      []map[string]string // [{ "title": "Article Title", "slug": "article-slug" }, ...]
 	HasFinishedRound bool
+	VotedToEnd       bool
 	Score            float64
 }
 
 type RoundData struct {
+	GameID             string
 	RoundNumber        int
 	TimeElapsed        int
 	OriginArticle      map[string]string // { "title": "Article Title", "slug": "article-slug" }
@@ -32,6 +38,7 @@ type RoundData struct {
 }
 
 type GameSettings struct {
+	GameID              string
 	GameType            string // "fastest" "min steps"
 	ScoringType         string // "points" "first only" "time" "steps"
 	RoundWaitTime       int

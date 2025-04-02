@@ -2,16 +2,168 @@ package game
 
 import (
 	"errors"
+	"log"
 	"sync"
+	"wiki-woyage/lobby"
+	"wiki-woyage/player"
 	st "wiki-woyage/structs"
 	"wiki-woyage/utils"
+
+	"github.com/gorilla/websocket"
 )
 
 var (
-	games            = make(map[string]*st.Game) // gameID -> Game
-	lobbiesWithGames = make(map[string]string)   // lobbyID -> gameID
-	gameMutex        = sync.RWMutex{}
+	games     = make(map[string]*st.Game) // gameID -> Game
+	gameMutex = sync.RWMutex{}
 )
+
+func StartNewGame(conn *websocket.Conn, playerID string, lobbyID string, gameSettings st.GameSettings) (*st.Game, error) {
+	lobby, _ := lobby.GetLobby(lobbyID)
+	lobby.LobbyStructMutex.Lock()
+	if lobby.GameID != "" {
+		log.Printf("Lobby %s already has a game %s", lobbyID, lobby.GameID)
+		lobby.LobbyStructMutex.Unlock()
+		return nil, errors.New("lobby already has a game")
+	}
+	if lobby.AdminPlayerID != playerID {
+		log.Printf("Player %s is not admin of lobby %s", playerID, lobbyID)
+		lobby.LobbyStructMutex.Unlock()
+		return nil, errors.New("player is not admin of lobby")
+	}
+	lobby.LobbyStructMutex.Unlock()
+
+	gameMutex.Lock()
+	gameID := utils.GenerateGameID(&games)
+	gameMutex.Unlock()
+
+	lobby.LobbyStructMutex.Lock()
+	lobby.GameID = gameID
+	lobby.LobbyStructMutex.Unlock()
+
+	game := &st.Game{
+		GameID:         gameID,
+		LobbyID:        lobbyID,
+		GamePlayerData: make(map[string]st.GamePlayerData),
+		RoundData: st.RoundData{
+			GameID:             gameID,
+			RoundNumber:        0,
+			TimeElapsed:        0,
+			OriginArticle:      nil,
+			DestinationArticle: nil,
+			Finished:           true,
+		},
+		Settings:        gameSettings,
+		Finished:        false,
+		Conn:            conn,
+		GameStructMutex: sync.Mutex{},
+	}
+
+	game.GamePlayerData[playerID] = st.GamePlayerData{
+		GameID:           gameID,
+		PlayerID:         playerID,
+		InGame:           true,
+		CurrentArticle:   nil,
+		ArticleTree:      []map[string]string{},
+		HasFinishedRound: true,
+		VotedToEnd:       false,
+		Score:            0.0,
+	}
+	gameMutex.Lock()
+	games[gameID] = game
+	gameMutex.Unlock()
+
+	player, _ := player.GetPlayer(playerID)
+	player.PlayerStructMutex.Lock()
+	player.GameID = gameID
+	player.PlayerStructMutex.Unlock()
+
+	log.Printf("Game %s created for lobby %s by player %s", gameID, lobbyID, playerID)
+	return game, nil
+}
+
+func JoinGame(playerID, gameID string) error {
+	game, _ := GetGame(gameID)
+
+	game.GameStructMutex.Lock()
+	if _, ok := game.GamePlayerData[playerID]; ok {
+		log.Println("Player already in game")
+		game.GameStructMutex.Unlock()
+		return nil
+	}
+	if playerLobbyID, _ := player.GetPlayerLobbyID(playerID); playerLobbyID != game.LobbyID {
+		log.Printf("Player %s is not in the same lobby as game %s", playerID, gameID)
+		game.GameStructMutex.Unlock()
+		return errors.New("player not in the same lobby as game")
+	}
+	game.GamePlayerData[playerID] = st.GamePlayerData{
+		GameID:           gameID,
+		PlayerID:         playerID,
+		InGame:           true,
+		CurrentArticle:   nil,
+		ArticleTree:      []map[string]string{},
+		HasFinishedRound: true,
+		VotedToEnd:       false,
+		Score:            0.0,
+	}
+	game.GameStructMutex.Unlock()
+
+	lobby, _ := lobby.GetLobby(game.LobbyID)
+	lobby.LobbyStructMutex.Lock()
+	lobby.PlayerIDs[playerID] = true
+	lobby.LobbyStructMutex.Unlock()
+
+	player, _ := player.GetPlayer(playerID)
+	player.PlayerStructMutex.Lock()
+	player.GameID = gameID
+	player.PlayerStructMutex.Unlock()
+
+	log.Printf("Player %s joined game %s", playerID, gameID)
+	return nil
+}
+
+func VoteToEndGame(playerID, gameID string) error {
+	game, _ := GetGame(gameID)
+
+	game.GameStructMutex.Lock()
+	if playerData, ok := game.GamePlayerData[playerID]; !ok {
+		log.Printf("Player %s not in game %s", playerID, gameID)
+		game.GameStructMutex.Unlock()
+		return errors.New("player not in game")
+	} else {
+		playerData.VotedToEnd = true
+		game.GamePlayerData[playerID] = playerData
+	}
+	playersInGame := 0
+	votesToEnd := 0
+	for _, playerData := range game.GamePlayerData {
+		if playerData.InGame {
+			playersInGame++
+			if playerData.VotedToEnd {
+				votesToEnd++
+			}
+		}
+	}
+	game.GameStructMutex.Unlock()
+
+	if votesToEnd >= playersInGame/2 {
+		game.GameStructMutex.Lock()
+		game.Finished = true
+		game.GameStructMutex.Unlock()
+
+		lobby, _ := lobby.GetLobby(game.LobbyID)
+		lobby.LobbyStructMutex.Lock()
+		lobby.GameID = ""
+		lobby.LobbyStructMutex.Unlock()
+
+		player, _ := player.GetPlayer(playerID)
+		player.PlayerStructMutex.Lock()
+		player.GameID = ""
+		player.PlayerStructMutex.Unlock()
+
+		log.Printf("Game %s ended by majority", gameID)
+	}
+	return nil
+}
 
 func GetGame(gameID string) (*st.Game, error) {
 	gameMutex.RLock()
@@ -23,100 +175,4 @@ func GetGame(gameID string) (*st.Game, error) {
 	}
 
 	return game, nil
-}
-
-func StartNewGame(lobbyID string, settings st.GameSettings) (string, error) {
-	gameMutex.Lock()
-	defer gameMutex.Unlock()
-
-	if _, ok := lobbiesWithGames[lobbyID]; ok {
-		return "", errors.New("game already ok for this lobby")
-	}
-
-	gameID := utils.GenerateGameID(&games)
-	// TODO: Better handling of game start with a lobby struct to check "ready" players
-	game := &st.Game{
-		LobbyID:    lobbyID,
-		PlayerData: make(map[string]st.PlayerData),
-		RoundData: st.RoundData{
-			TimeElapsed:        0,
-			RoundNumber:        0,
-			OriginArticle:      nil,
-			DestinationArticle: nil,
-			Finished:           true,
-		},
-		Settings:   settings,
-		VotesToEnd: make(map[string]bool),
-		Finished:   false,
-	}
-	games[gameID] = game
-	lobbiesWithGames[lobbyID] = gameID
-
-	return gameID, nil
-}
-
-func JoinGame(lobbyID, playerID string) (string, error) {
-	gameMutex.RLock()
-	gameID, ok := lobbiesWithGames[lobbyID]
-	gameMutex.RUnlock()
-	if !ok {
-		return "", errors.New("no game found for this lobby")
-	}
-
-	game, err := GetGame(gameID)
-	if err != nil {
-		return "", err
-	}
-
-	(*game).GameStructMutex.Lock()
-	defer (*game).GameStructMutex.Unlock()
-
-	if playerData, ok := (*game).PlayerData[playerID]; ok {
-		if !playerData.InGame {
-			return "", errors.New("player already in game")
-		} else {
-			playerData.InGame = true
-			(*game).PlayerData[playerID] = playerData
-			return gameID, nil
-		}
-	}
-
-	(*game).PlayerData[playerID] = st.PlayerData{
-		PlayerID:         playerID,
-		InGame:           true,
-		CurrentArticle:   (*game).RoundData.OriginArticle,
-		ArticleTree:      []map[string]string{(*game).RoundData.OriginArticle},
-		HasFinishedRound: false,
-		Score:            0.0,
-	}
-
-	return gameID, nil
-}
-
-func VoteToEndGame(gameID, playerID string) error {
-	game, err := GetGame(gameID)
-	if err != nil {
-		return err
-	}
-
-	(*game).GameStructMutex.Lock()
-	defer (*game).GameStructMutex.Unlock()
-
-	if _, ok := (*game).PlayerData[playerID]; !ok {
-		return errors.New("player not found in game to vote")
-	}
-
-	(*game).VotesToEnd[playerID] = true
-
-	inGameCount := 0
-	for _, playerData := range (*game).PlayerData {
-		if playerData.InGame {
-			inGameCount++
-		}
-	}
-	if len((*game).VotesToEnd) >= inGameCount/2 {
-		(*game).Finished = true
-	}
-
-	return nil
 }
