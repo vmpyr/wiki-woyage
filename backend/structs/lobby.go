@@ -7,9 +7,9 @@ import (
 )
 
 type Lobby struct {
-	LobbyID          string              // lobbyID
-	GameID           string              // gameID
-	PlayerIDs        map[string]struct{} // playerIDs
+	LobbyID          string          // lobbyID
+	GameID           string          // gameID
+	PlayerIDs        map[string]bool // playerIDs -> true if ready / ingame
 	Conn             *websocket.Conn
 	LobbyStructMutex sync.Mutex
 }

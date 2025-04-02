@@ -20,8 +20,8 @@ func HandleCreateLobby(conn *websocket.Conn, playerID string) {
 	})
 }
 
-func HandleJoinLobby(conn *websocket.Conn, lobbyID string, playerID string) {
-	err := JoinLobby(lobbyID, playerID)
+func HandleJoinLobby(conn *websocket.Conn, playerID string, lobbyID string) {
+	err := JoinLobby(playerID, lobbyID)
 	if err != nil {
 		utils.SendError(conn, err.Error())
 		return
@@ -32,8 +32,8 @@ func HandleJoinLobby(conn *websocket.Conn, lobbyID string, playerID string) {
 	})
 }
 
-func HandleLeaveLobby(conn *websocket.Conn, lobbyID string, playerID string) {
-	err := LeaveLobby(lobbyID, playerID)
+func HandleLeaveLobby(conn *websocket.Conn, playerID string, lobbyID string) {
+	err := LeaveLobby(playerID, lobbyID)
 	if err != nil {
 		utils.SendError(conn, err.Error())
 		return
@@ -41,5 +41,24 @@ func HandleLeaveLobby(conn *websocket.Conn, lobbyID string, playerID string) {
 
 	utils.SendResponse(conn, st.WebSocketResponse{
 		Type: "lobby_left",
+	})
+}
+
+func HandleToggleReady(conn *websocket.Conn, playerID string, lobbyID string) {
+	toggledTo, err := ToggleReady(playerID, lobbyID)
+	if err != nil {
+		utils.SendError(conn, err.Error())
+		return
+	}
+
+	var responseType string
+	if toggledTo {
+		responseType = "toggle_ready"
+	} else {
+		responseType = "toggle_not_ready"
+	}
+
+	utils.SendResponse(conn, st.WebSocketResponse{
+		Type: responseType,
 	})
 }

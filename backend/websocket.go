@@ -37,9 +37,11 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 		case "create_lobby":
 			lobby.HandleCreateLobby(conn, msg.PlayerID)
 		case "join_lobby":
-			lobby.HandleJoinLobby(conn, msg.LobbyID, msg.PlayerID)
+			lobby.HandleJoinLobby(conn, msg.PlayerID, msg.LobbyID)
 		case "leave_lobby":
-			lobby.HandleLeaveLobby(conn, msg.LobbyID, msg.PlayerID)
+			lobby.HandleLeaveLobby(conn, msg.PlayerID, msg.LobbyID)
+		case "toggle_ready":
+			lobby.HandleToggleReady(conn, msg.PlayerID, msg.LobbyID)
 		default:
 			log.Println("Unknown message type:", msg.Type)
 		}
