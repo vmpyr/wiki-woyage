@@ -77,3 +77,21 @@ func SendResponse(conn *websocket.Conn, response st.WebSocketResponse) {
 		conn.Close()
 	}
 }
+
+func MutexExecPlayer(p *st.Player, f func(*st.Player) error) error {
+	p.PlayerStructMutex.Lock()
+	defer p.PlayerStructMutex.Unlock()
+	return f(p)
+}
+
+func MutexExecLobby(l *st.Lobby, f func(*st.Lobby) error) error {
+	l.LobbyStructMutex.Lock()
+	defer l.LobbyStructMutex.Unlock()
+	return f(l)
+}
+
+func MutexExecGame(g *st.Game, f func(*st.Game) error) error {
+	g.GameStructMutex.Lock()
+	defer g.GameStructMutex.Unlock()
+	return f(g)
+}
