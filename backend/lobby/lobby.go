@@ -41,6 +41,10 @@ func CreateLobby(conn *websocket.Conn, playerID string) (*st.Lobby, error) {
 		log.Println("Max lobbies reached")
 		return nil, errors.New("max lobbies reached")
 	}
+	if _, ok := lobbies[playerID]; ok {
+		log.Println("Player already in lobby")
+		return nil, errors.New("player already in a lobby")
+	}
 
 	lobbyID := utils.GenerateLobbyID(&lobbies)
 	lobby := &st.Lobby{
