@@ -7,12 +7,21 @@ import (
 	"wiki-woyage/lobby"
 	"wiki-woyage/player"
 	"wiki-woyage/structs"
+	"wiki-woyage/utils"
 
 	"github.com/gorilla/websocket"
 )
 
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool { return true },
+}
+
+func CheckPlayerExists(playerID string) bool {
+	if _, err := player.GetPlayer(playerID); err != nil {
+		log.Printf("Player %s not found", playerID)
+		return false
+	}
+	return true
 }
 
 func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
@@ -29,6 +38,11 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Println("WebSocket Read Error:", err)
 			break
+		}
+
+		if msg.PlayerID != "" && !CheckPlayerExists(msg.PlayerID) {
+			utils.SendError(conn, "Player not found")
+			continue
 		}
 
 		switch msg.Type {

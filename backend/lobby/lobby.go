@@ -21,19 +21,6 @@ var (
 	lobbyMutex sync.RWMutex
 )
 
-func GetLobby(lobbyID string) (*st.Lobby, error) {
-	lobbyMutex.RLock()
-	defer lobbyMutex.RUnlock()
-
-	lobby, ok := lobbies[lobbyID]
-	if !ok {
-		log.Printf("Lobby %s not found", lobbyID)
-		return nil, errors.New("lobby not found")
-	}
-
-	return lobby, nil
-}
-
 func CreateLobby(conn *websocket.Conn, playerID string) (*st.Lobby, error) {
 	lobbyMutex.Lock()
 	defer lobbyMutex.Unlock()
@@ -42,20 +29,22 @@ func CreateLobby(conn *websocket.Conn, playerID string) (*st.Lobby, error) {
 		log.Println("Max lobbies reached")
 		return nil, errors.New("max lobbies reached")
 	}
-	if playerLobbyID, err := player.GetPlayerLobbyID(playerID); err == nil {
-		if playerLobbyID != "" {
-			log.Printf("Player %s already in lobby %s", playerID, playerLobbyID)
-			return nil, errors.New("player already in another lobby")
-		}
-	} else {
-		return nil, err
-	}
 
+	player, _ := player.GetPlayer(playerID)
+	player.PlayerStructMutex.Lock()
+	if player.LobbyID != "" {
+		log.Printf("Player %s already in lobby %s", playerID, player.LobbyID)
+		return nil, errors.New("player already in another lobby")
+	}
 	lobbyID := utils.GenerateLobbyID(&lobbies)
+	player.LobbyID = lobbyID
+	player.PlayerStructMutex.Unlock()
+
 	lobby := &st.Lobby{
 		LobbyID:          lobbyID,
 		GameID:           "",
 		PlayerIDs:        make(map[string]bool),
+		AdminPlayerID:    playerID,
 		Conn:             conn,
 		LobbyStructMutex: sync.Mutex{},
 	}
@@ -84,6 +73,11 @@ func JoinLobby(playerID, lobbyID string) error {
 		return errors.New("lobby is full")
 	}
 
+	player, _ := player.GetPlayer(playerID)
+	player.PlayerStructMutex.Lock()
+	player.LobbyID = lobbyID
+	player.PlayerStructMutex.Unlock()
+
 	lobby.PlayerIDs[playerID] = false
 	log.Printf("Player %s joined lobby %s", playerID, lobbyID)
 	return nil
@@ -98,12 +92,25 @@ func LeaveLobby(playerID, lobbyID string) error {
 	lobby.LobbyStructMutex.Lock()
 	defer lobby.LobbyStructMutex.Unlock()
 
+	player, _ := player.GetPlayer(playerID)
+	player.PlayerStructMutex.Lock()
+	player.LobbyID = ""
+	player.PlayerStructMutex.Unlock()
+
 	delete(lobby.PlayerIDs, playerID)
 	log.Printf("Player %s left lobby %s", playerID, lobbyID)
 
+	if lobby.AdminPlayerID == playerID && len(lobby.PlayerIDs) > 0 {
+		for newAdminID := range lobby.PlayerIDs {
+			lobby.AdminPlayerID = newAdminID
+			break
+		}
+		log.Printf("Player %s is now admin of lobby %s", lobby.AdminPlayerID, lobbyID)
+	}
+
 	if len(lobby.PlayerIDs) == 0 {
 		delete(lobbies, lobbyID)
-		log.Printf("Lobby %s deleted", lobbyID)
+		log.Printf("No player in lobby %s deleted, hence deleted", lobbyID)
 	}
 	return nil
 }
@@ -127,4 +134,35 @@ func ToggleReady(playerID, lobbyID string) (bool, error) {
 	log.Printf("Player %s toggled to %t in lobby %s", playerID, toggledTo, lobbyID)
 
 	return toggledTo, nil
+}
+
+func GetLobby(lobbyID string) (*st.Lobby, error) {
+	lobbyMutex.RLock()
+	defer lobbyMutex.RUnlock()
+
+	lobby, ok := lobbies[lobbyID]
+	if !ok {
+		log.Printf("Lobby %s not found", lobbyID)
+		return nil, errors.New("lobby not found")
+	}
+
+	return lobby, nil
+}
+
+func GetLobbyGameID(lobbyID string) (string, error) {
+	lobby, err := GetLobby(lobbyID)
+	if err != nil {
+		return "", err
+	}
+
+	return lobby.GameID, nil
+}
+
+func GetAdminPlayerID(lobbyID string) (string, error) {
+	lobby, err := GetLobby(lobbyID)
+	if err != nil {
+		return "", err
+	}
+
+	return lobby.AdminPlayerID, nil
 }
