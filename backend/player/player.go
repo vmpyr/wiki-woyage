@@ -87,3 +87,12 @@ func GetPlayerName(playerID string) (string, error) {
 
 	return player.PlayerName, nil
 }
+
+func GetPlayerLobbyID(playerID string) (string, error) {
+	player, err := GetPlayer(playerID)
+	if err != nil {
+		return "", err
+	}
+
+	return player.LobbyID, nil
+}

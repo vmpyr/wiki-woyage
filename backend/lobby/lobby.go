@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"sync"
+	"wiki-woyage/player"
 	st "wiki-woyage/structs"
 	"wiki-woyage/utils"
 
@@ -41,9 +42,13 @@ func CreateLobby(conn *websocket.Conn, playerID string) (*st.Lobby, error) {
 		log.Println("Max lobbies reached")
 		return nil, errors.New("max lobbies reached")
 	}
-	if _, ok := lobbies[playerID]; ok {
-		log.Println("Player already in lobby")
-		return nil, errors.New("player already in a lobby")
+	if playerLobbyID, err := player.GetPlayerLobbyID(playerID); err == nil {
+		if playerLobbyID != "" {
+			log.Printf("Player %s already in lobby %s", playerID, playerLobbyID)
+			return nil, errors.New("player already in another lobby")
+		}
+	} else {
+		return nil, err
 	}
 
 	lobbyID := utils.GenerateLobbyID(&lobbies)
