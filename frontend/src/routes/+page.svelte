@@ -3,19 +3,13 @@
     import { connectWebSocket, sendWebSocketMessage } from '$lib/websocket';
 
     let playerName = '';
-    let lobbyID = '';
 
     onMount(() => {
         connectWebSocket();
     });
 
-    function createLobby() {
-        sendWebSocketMessage('create_lobby', { playerName });
-    }
-
-    function joinLobby() {
-        if (lobbyID.trim() === '') return;
-        sendWebSocketMessage('join_lobby', { lobbyID, playerName });
+    function createPlayer() {
+        sendWebSocketMessage('create_player', { playerName });
     }
 </script>
 
@@ -28,26 +22,13 @@
             id="playerName"
             bind:value={playerName}
             class="mt-2 w-64 rounded border border-gray-300 p-2"
-            placeholder="Your name"
-        />
-        <input
-            type="text"
-            id="lobbyID"
-            bind:value={lobbyID}
-            class="mt-2 w-64 rounded border border-gray-300 p-2"
-            placeholder="Lobby ID (for joining only)"
+            placeholder="Enter username"
         />
         <button
             class="mt-2 rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600"
-            on:click={createLobby}
+            on:click={createPlayer}
         >
-            Create Lobby
-        </button>
-        <button
-            class="ml-4 mt-2 rounded bg-green-500 px-4 py-2 text-white hover:bg-green-600"
-            on:click={joinLobby}
-        >
-            Join Lobby
+            Let's go!
         </button>
     </div>
 </main>
