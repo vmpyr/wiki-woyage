@@ -11,6 +11,7 @@ type WebSocketMessage struct {
 
 type WebSocketResponse struct {
 	Type         string `json:"type"`
+	Success      bool   `json:"success"`
 	ErrorMessage string `json:"errorMessage,omitempty"`
 	PlayerName   string `json:"playerName,omitempty"`
 	PlayerID     string `json:"playerID,omitempty"`

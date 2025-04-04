@@ -3,20 +3,30 @@ package player
 import (
 	st "wiki-woyage/structs"
 	"wiki-woyage/utils"
-
-	"github.com/gorilla/websocket"
 )
 
-func HandleCreatePlayer(conn *websocket.Conn, playerName string) {
-	player, err := CreatePlayer(conn, playerName)
+func HandleAddPlayerName(p *st.Player, playerName string) {
+	err := AddPlayerName(p, playerName)
 	if err != nil {
-		utils.SendError(conn, err.Error())
+		utils.SendError(p.Conn, err.Error())
 		return
 	}
 
-	utils.SendResponse(conn, st.WebSocketResponse{
+	utils.SendResponse(p.Conn, st.WebSocketResponse{
 		Type:       "player_created",
-		PlayerID:   player.PlayerID,
-		PlayerName: player.PlayerName,
+		PlayerID:   p.PlayerID,
+		PlayerName: p.PlayerName,
+	})
+}
+
+func HandleDeletePlayer(p *st.Player) {
+	err := DeletePlayer(p)
+	if err != nil {
+		utils.SendError(p.Conn, err.Error())
+		return
+	}
+
+	utils.SendResponse(p.Conn, st.WebSocketResponse{
+		Type: "player_deleted",
 	})
 }

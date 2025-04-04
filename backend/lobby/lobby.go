@@ -4,11 +4,8 @@ import (
 	"errors"
 	"log"
 	"sync"
-	"wiki-woyage/player"
 	st "wiki-woyage/structs"
 	"wiki-woyage/utils"
-
-	"github.com/gorilla/websocket"
 )
 
 var (
@@ -21,34 +18,31 @@ var (
 	lobbyMutex sync.RWMutex
 )
 
-func CreateLobby(conn *websocket.Conn, playerID string) (*st.Lobby, error) {
+func CreateLobby(p *st.Player) (string, error) {
 	lobbyMutex.Lock()
 	if len(lobbies) >= MAX_LOBBIES {
 		log.Println("Max lobbies reached")
-		return nil, errors.New("max lobbies reached")
+		return "", errors.New("max lobbies reached")
 	}
 	lobbyID := utils.GenerateLobbyID(&lobbies)
 	lobbyMutex.Unlock()
 
-	player, _ := player.GetPlayer(playerID)
-	err := utils.MutexExecPlayer(player, func(p *st.Player) error {
+	if err := utils.MutexExecPlayer(p, func(p *st.Player) error {
 		if p.LobbyID != "" {
-			log.Printf("Player %s already in lobby %s", playerID, p.LobbyID)
+			log.Printf("Player %s already in lobby %s", p.PlayerID, p.LobbyID)
 			return errors.New("player already in another lobby")
 		}
 		p.LobbyID = lobbyID
 		return nil
-	})
-	if err != nil {
-		return nil, err
+	}); err != nil {
+		return "", err
 	}
 
 	lobby := &st.Lobby{
 		LobbyID:          lobbyID,
 		GameID:           "",
-		PlayerIDs:        map[string]bool{playerID: false},
-		AdminPlayerID:    playerID,
-		Conn:             conn,
+		PlayerIDs:        map[string]bool{p.PlayerID: false},
+		AdminPlayerID:    p.PlayerID,
 		LobbyStructMutex: sync.Mutex{},
 	}
 
@@ -56,61 +50,59 @@ func CreateLobby(conn *websocket.Conn, playerID string) (*st.Lobby, error) {
 	lobbies[lobbyID] = lobby
 	lobbyMutex.Unlock()
 
-	log.Printf("Lobby %s created by %s", lobbyID, playerID)
-	return lobby, nil
+	log.Printf("Lobby %s created by %s", lobbyID, p.PlayerID)
+	return lobbyID, nil
 }
 
-func JoinLobby(playerID, lobbyID string) error {
+func JoinLobby(p *st.Player, lobbyID string) error {
 	lobby, _ := GetLobby(lobbyID)
-	err := utils.MutexExecLobby(lobby, func(l *st.Lobby) error {
-		if _, ok := l.PlayerIDs[playerID]; ok {
-			log.Printf("Player %s already in lobby %s", playerID, lobbyID)
+	if err := utils.MutexExecLobby(lobby, func(l *st.Lobby) error {
+		if _, ok := l.PlayerIDs[p.PlayerID]; ok {
+			log.Printf("Player %s already in lobby %s", p.PlayerID, lobbyID)
 			return errors.New("player already in lobby")
 		}
 		if len(l.PlayerIDs) >= MAX_PLAYERS_PER_LOBBY {
 			log.Printf("Lobby %s is full", lobbyID)
 			return errors.New("lobby is full")
 		}
-		l.PlayerIDs[playerID] = false
-		log.Printf("Player %s joined lobby %s", playerID, lobbyID)
+		l.PlayerIDs[p.PlayerID] = false
+		log.Printf("Player %s joined lobby %s", p.PlayerID, lobbyID)
 		return nil
-	})
-	if err != nil {
+	}); err != nil {
 		if err.Error() == "player already in lobby" {
 			return nil
 		}
 		return err
 	}
 
-	player, _ := player.GetPlayer(playerID)
-	player.PlayerStructMutex.Lock()
-	player.LobbyID = lobbyID
-	player.PlayerStructMutex.Unlock()
+	p.PlayerStructMutex.Lock()
+	p.LobbyID = lobbyID
+	p.PlayerStructMutex.Unlock()
 
-	log.Printf("Player %s joined lobby %s", playerID, lobbyID)
+	log.Printf("Player %s joined lobby %s", p.PlayerID, lobbyID)
 	return nil
 }
 
-func LeaveLobby(playerID, lobbyID string) error {
-	player, _ := player.GetPlayer(playerID)
-	err := utils.MutexExecPlayer(player, func(p *st.Player) error {
-		if p.LobbyID != lobbyID {
-			log.Printf("Player %s not in lobby %s", playerID, lobbyID)
-			return errors.New("player not in lobby")
+func LeaveLobby(p *st.Player, lobbyID string, playerDisconnect bool) error {
+	if !playerDisconnect {
+		if err := utils.MutexExecPlayer(p, func(p *st.Player) error {
+			if p.LobbyID != lobbyID {
+				log.Printf("Player %s not in lobby %s", p.PlayerID, lobbyID)
+				return errors.New("player not in lobby")
+			}
+			p.LobbyID = ""
+			return nil
+		}); err != nil {
+			return err
 		}
-		p.LobbyID = ""
-		return nil
-	})
-	if err != nil {
-		return err
 	}
 
 	lobby, _ := GetLobby(lobbyID)
 	return utils.MutexExecLobby(lobby, func(l *st.Lobby) error {
-		delete(l.PlayerIDs, playerID)
-		log.Printf("Player %s left lobby %s", playerID, lobbyID)
+		delete(l.PlayerIDs, p.PlayerID)
+		log.Printf("Player %s left lobby %s", p.PlayerID, lobbyID)
 
-		if l.AdminPlayerID == playerID && len(l.PlayerIDs) > 0 {
+		if l.AdminPlayerID == p.PlayerID && len(l.PlayerIDs) > 0 {
 			for newAdminID := range l.PlayerIDs {
 				l.AdminPlayerID = newAdminID
 				break

@@ -4,10 +4,9 @@ import (
 	"errors"
 	"log"
 	"sync"
+	"time"
 	st "wiki-woyage/structs"
 	"wiki-woyage/utils"
-
-	"github.com/gorilla/websocket"
 )
 
 var (
@@ -21,48 +20,54 @@ var (
 	playerMutex      sync.RWMutex
 )
 
-func CreatePlayer(conn *websocket.Conn, playerName string) (*st.Player, error) {
-	if len(playerName) < MIN_PLAYER_NAME_LENGTH || len(playerName) > MAX_PLAYER_NAME_LENGTH {
-		log.Printf("Player name %s is invalid", playerName)
-		return nil, errors.New("player name is invalid")
-	}
-
-	playerMutex.Lock()
-	defer playerMutex.Unlock()
-
-	if _, ok := takenPlayerNames[playerName]; ok {
-		log.Printf("Player name %s already taken", playerName)
-		return nil, errors.New("player name already taken")
-	}
-
-	playerID := utils.GeneratePlayerID(&players)
-	player := &st.Player{
+func CreatePlayer(playerID string) (*st.Player, error) {
+	p := &st.Player{
 		PlayerID:          playerID,
-		PlayerName:        playerName,
+		PlayerName:        playerID,
 		LobbyID:           "",
 		GameID:            "",
-		Conn:              conn,
+		LastActive:        time.Now(),
+		Conn:              nil,
 		PlayerStructMutex: sync.Mutex{},
 	}
-	players[playerID] = player
-	takenPlayerNames[playerName] = playerID
-	log.Printf("Player %s created with ID %s", playerName, playerID)
-	return player, nil
+
+	playerMutex.Lock()
+	defer playerMutex.Unlock()
+	players[playerID] = p
+	takenPlayerNames[playerID] = playerID
+	log.Printf("Player created with ID %s", playerID)
+	return p, nil
 }
 
-func DeletePlayer(playerID string) error {
+func AddPlayerName(p *st.Player, playerName string) error {
+	if len(playerName) < MIN_PLAYER_NAME_LENGTH || len(playerName) > MAX_PLAYER_NAME_LENGTH {
+		log.Printf("Player name %s is invalid", playerName)
+		return errors.New("player name is invalid")
+	}
+
+	playerMutex.Lock()
+	if _, ok := takenPlayerNames[playerName]; ok {
+		log.Printf("Player name %s already taken", playerName)
+		return errors.New("player name already taken")
+	}
+	delete(takenPlayerNames, p.PlayerName)
+	takenPlayerNames[playerName] = p.PlayerID
+	playerMutex.Unlock()
+
+	p.PlayerStructMutex.Lock()
+	p.PlayerName = playerName
+	p.PlayerStructMutex.Unlock()
+	log.Printf("Player %s changed name to %s", p.PlayerID, playerName)
+	return nil
+}
+
+func DeletePlayer(p *st.Player) error {
 	playerMutex.Lock()
 	defer playerMutex.Unlock()
 
-	player, ok := players[playerID]
-	if !ok {
-		log.Printf("Player %s not found", playerID)
-		return errors.New("player not found")
-	}
-
-	delete(takenPlayerNames, player.PlayerName)
-	delete(players, playerID)
-	log.Printf("Player %s deleted", playerID)
+	delete(takenPlayerNames, p.PlayerName)
+	delete(players, p.PlayerID)
+	log.Printf("Player %s deleted", p.PlayerID)
 	return nil
 }
 

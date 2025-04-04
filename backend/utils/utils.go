@@ -27,16 +27,6 @@ func GenerateLobbyID(lobbies *map[string]*st.Lobby) string {
 	}
 }
 
-func GeneratePlayerID(players *map[string]*st.Player) string {
-	const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-	for {
-		playerID := GenerateID(characters, 25)
-		if _, ok := (*players)[playerID]; !ok {
-			return playerID
-		}
-	}
-}
-
 func GenerateGameID(games *map[string]*st.Game) string {
 	const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 	for {
@@ -63,6 +53,7 @@ func GetWWEnvVars(key string, def int) int {
 func SendError(conn *websocket.Conn, errorMessage string) {
 	response := st.WebSocketResponse{
 		Type:         "error",
+		Success:      false,
 		ErrorMessage: errorMessage,
 	}
 	err := conn.WriteJSON(response)
@@ -72,6 +63,7 @@ func SendError(conn *websocket.Conn, errorMessage string) {
 }
 
 func SendResponse(conn *websocket.Conn, response st.WebSocketResponse) {
+	response.Success = true
 	err := conn.WriteJSON(response)
 	if err != nil {
 		conn.Close()
@@ -94,4 +86,8 @@ func MutexExecGame(g *st.Game, f func(*st.Game) error) error {
 	g.GameStructMutex.Lock()
 	defer g.GameStructMutex.Unlock()
 	return f(g)
+}
+
+func HasSuffix(s, suffix string) bool {
+	return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix
 }

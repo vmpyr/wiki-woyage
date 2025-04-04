@@ -2,8 +2,6 @@ package structs
 
 import (
 	"sync"
-
-	"github.com/gorilla/websocket"
 )
 
 type Game struct {
@@ -13,7 +11,6 @@ type Game struct {
 	RoundData       RoundData
 	Settings        GameSettings
 	Finished        bool
-	Conn            *websocket.Conn
 	GameStructMutex sync.Mutex
 }
 

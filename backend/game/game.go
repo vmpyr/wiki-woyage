@@ -8,8 +8,6 @@ import (
 	"wiki-woyage/player"
 	st "wiki-woyage/structs"
 	"wiki-woyage/utils"
-
-	"github.com/gorilla/websocket"
 )
 
 var (
@@ -17,34 +15,33 @@ var (
 	gameMutex = sync.RWMutex{}
 )
 
-func StartNewGame(conn *websocket.Conn, playerID string, lobbyID string, gameSettings st.GameSettings) (*st.Game, error) {
+func StartNewGame(p *st.Player, lobbyID string, gameSettings st.GameSettings) (string, error) {
 	gameMutex.Lock()
 	gameID := utils.GenerateGameID(&games)
 	gameMutex.Unlock()
 
 	lobby, _ := lobby.GetLobby(lobbyID)
-	err := utils.MutexExecLobby(lobby, func(l *st.Lobby) error {
+	if err := utils.MutexExecLobby(lobby, func(l *st.Lobby) error {
 		if l.GameID != "" {
 			log.Printf("Lobby %s already has a game %s", lobbyID, l.GameID)
 			return errors.New("lobby already has a game")
 		}
-		if l.AdminPlayerID != playerID {
-			log.Printf("Player %s is not admin of lobby %s", playerID, lobbyID)
+		if l.AdminPlayerID != p.PlayerID {
+			log.Printf("Player %s is not admin of lobby %s", p.PlayerID, lobbyID)
 			return errors.New("player is not admin of lobby")
 		}
 		l.GameID = gameID
 		return nil
-	})
-	if err != nil {
-		return nil, err
+	}); err != nil {
+		return "", err
 	}
 
 	game := &st.Game{
 		GameID:  gameID,
 		LobbyID: lobbyID,
-		GamePlayerData: map[string]st.GamePlayerData{playerID: {
+		GamePlayerData: map[string]st.GamePlayerData{p.PlayerID: {
 			GameID:           gameID,
-			PlayerID:         playerID,
+			PlayerID:         p.PlayerID,
 			InGame:           true,
 			CurrentArticle:   nil,
 			ArticleTree:      []map[string]string{},
@@ -62,7 +59,6 @@ func StartNewGame(conn *websocket.Conn, playerID string, lobbyID string, gameSet
 		},
 		Settings:        gameSettings,
 		Finished:        false,
-		Conn:            conn,
 		GameStructMutex: sync.Mutex{},
 	}
 
@@ -70,33 +66,32 @@ func StartNewGame(conn *websocket.Conn, playerID string, lobbyID string, gameSet
 	games[gameID] = game
 	gameMutex.Unlock()
 
-	player, _ := player.GetPlayer(playerID)
-	player.PlayerStructMutex.Lock()
-	player.GameID = gameID
-	player.PlayerStructMutex.Unlock()
+	p.PlayerStructMutex.Lock()
+	p.GameID = gameID
+	p.PlayerStructMutex.Unlock()
 
-	log.Printf("Game %s created for lobby %s by player %s", gameID, lobbyID, playerID)
-	return game, nil
+	log.Printf("Game %s created for lobby %s by player %s", gameID, lobbyID, p.PlayerID)
+	return gameID, nil
 }
 
-func JoinGame(playerID, gameID string) error {
+func JoinGame(p *st.Player, gameID string) error {
 	game, _ := GetGame(gameID)
-	err := utils.MutexExecGame(game, func(g *st.Game) error {
-		if _, ok := g.GamePlayerData[playerID]; ok {
-			log.Printf("Player %s already in game %s", playerID, gameID)
+	if err := utils.MutexExecGame(game, func(g *st.Game) error {
+		if _, ok := g.GamePlayerData[p.PlayerID]; ok {
+			log.Printf("Player %s already in game %s", p.PlayerID, gameID)
 			return errors.New("player already in game")
 		}
-		if playerLobbyID, _ := player.GetPlayerLobbyID(playerID); playerLobbyID != g.LobbyID {
-			log.Printf("Player %s is not in the same lobby as game %s", playerID, gameID)
+		if playerLobbyID, _ := player.GetPlayerLobbyID(p.PlayerID); playerLobbyID != g.LobbyID {
+			log.Printf("Player %s is not in the same lobby as game %s", p.PlayerID, gameID)
 			return errors.New("player not in the same lobby as game")
 		}
 		if g.Finished {
 			log.Printf("Game %s already finished", gameID)
 			return errors.New("game already finished")
 		}
-		g.GamePlayerData[playerID] = st.GamePlayerData{
+		g.GamePlayerData[p.PlayerID] = st.GamePlayerData{
 			GameID:           gameID,
-			PlayerID:         playerID,
+			PlayerID:         p.PlayerID,
 			InGame:           true,
 			CurrentArticle:   nil,
 			ArticleTree:      []map[string]string{},
@@ -105,8 +100,7 @@ func JoinGame(playerID, gameID string) error {
 			Score:            0.0,
 		}
 		return nil
-	})
-	if err != nil {
+	}); err != nil {
 		if err.Error() == "player already in game" {
 			return nil
 		}
@@ -115,29 +109,28 @@ func JoinGame(playerID, gameID string) error {
 
 	lobby, _ := lobby.GetLobby(game.LobbyID)
 	lobby.LobbyStructMutex.Lock()
-	lobby.PlayerIDs[playerID] = true
+	lobby.PlayerIDs[p.PlayerID] = true
 	lobby.LobbyStructMutex.Unlock()
 
-	player, _ := player.GetPlayer(playerID)
-	player.PlayerStructMutex.Lock()
-	player.GameID = gameID
-	player.PlayerStructMutex.Unlock()
+	p.PlayerStructMutex.Lock()
+	p.GameID = gameID
+	p.PlayerStructMutex.Unlock()
 
-	log.Printf("Player %s joined game %s", playerID, gameID)
+	log.Printf("Player %s joined game %s", p.PlayerID, gameID)
 	return nil
 }
 
-func VoteToEndGame(playerID, gameID string) error {
+func VoteToEndGame(p *st.Player, gameID string) error {
 	game, _ := GetGame(gameID)
 
 	game.GameStructMutex.Lock()
-	if playerData, ok := game.GamePlayerData[playerID]; !ok {
-		log.Printf("Player %s not in game %s", playerID, gameID)
+	if playerData, ok := game.GamePlayerData[p.PlayerID]; !ok {
+		log.Printf("Player %s not in game %s", p.PlayerID, gameID)
 		game.GameStructMutex.Unlock()
 		return errors.New("player not in game")
 	} else {
 		playerData.VotedToEnd = true
-		game.GamePlayerData[playerID] = playerData
+		game.GamePlayerData[p.PlayerID] = playerData
 	}
 	playersInGame := 0
 	votesToEnd := 0
@@ -161,14 +154,42 @@ func VoteToEndGame(playerID, gameID string) error {
 		lobby.GameID = ""
 		lobby.LobbyStructMutex.Unlock()
 
-		player, _ := player.GetPlayer(playerID)
-		player.PlayerStructMutex.Lock()
-		player.GameID = ""
-		player.PlayerStructMutex.Unlock()
+		p.PlayerStructMutex.Lock()
+		p.GameID = ""
+		p.PlayerStructMutex.Unlock()
 
 		log.Printf("Game %s ended by majority", gameID)
 	}
 	return nil
+}
+
+func LeaveGame(p *st.Player, gameID string, playerDisconnect bool) error {
+	if !playerDisconnect {
+		if err := utils.MutexExecPlayer(p, func(p *st.Player) error {
+			if p.GameID != gameID {
+				log.Printf("Player %s not in game %s", p.PlayerID, gameID)
+				return errors.New("player not in game")
+			}
+			p.GameID = ""
+			return nil
+		}); err != nil {
+			return err
+		}
+	}
+
+	game, _ := GetGame(gameID)
+	return utils.MutexExecGame(game, func(g *st.Game) error {
+		delete(g.GamePlayerData, p.PlayerID)
+		log.Printf("Player %s left game %s", p.PlayerID, gameID)
+
+		if len(g.GamePlayerData) == 0 {
+			gameMutex.Lock()
+			delete(games, gameID)
+			gameMutex.Unlock()
+			log.Printf("No player in game %s deleted, hence deleted", gameID)
+		}
+		return nil
+	})
 }
 
 func GetGame(gameID string) (*st.Game, error) {

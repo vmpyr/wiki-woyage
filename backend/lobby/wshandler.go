@@ -3,51 +3,49 @@ package lobby
 import (
 	st "wiki-woyage/structs"
 	"wiki-woyage/utils"
-
-	"github.com/gorilla/websocket"
 )
 
-func HandleCreateLobby(conn *websocket.Conn, playerID string) {
-	lobby, err := CreateLobby(conn, playerID)
+func HandleCreateLobby(p *st.Player) {
+	lobbyID, err := CreateLobby(p)
 	if err != nil {
-		utils.SendError(conn, err.Error())
+		utils.SendError(p.Conn, err.Error())
 		return
 	}
 
-	utils.SendResponse(conn, st.WebSocketResponse{
+	utils.SendResponse(p.Conn, st.WebSocketResponse{
 		Type:    "lobby_created",
-		LobbyID: lobby.LobbyID,
+		LobbyID: lobbyID,
 	})
 }
 
-func HandleJoinLobby(conn *websocket.Conn, playerID string, lobbyID string) {
-	err := JoinLobby(playerID, lobbyID)
+func HandleJoinLobby(p *st.Player, lobbyID string) {
+	err := JoinLobby(p, lobbyID)
 	if err != nil {
-		utils.SendError(conn, err.Error())
+		utils.SendError(p.Conn, err.Error())
 		return
 	}
 
-	utils.SendResponse(conn, st.WebSocketResponse{
+	utils.SendResponse(p.Conn, st.WebSocketResponse{
 		Type: "lobby_joined",
 	})
 }
 
-func HandleLeaveLobby(conn *websocket.Conn, playerID string, lobbyID string) {
-	err := LeaveLobby(playerID, lobbyID)
+func HandleLeaveLobby(p *st.Player, lobbyID string) {
+	err := LeaveLobby(p, lobbyID, false)
 	if err != nil {
-		utils.SendError(conn, err.Error())
+		utils.SendError(p.Conn, err.Error())
 		return
 	}
 
-	utils.SendResponse(conn, st.WebSocketResponse{
+	utils.SendResponse(p.Conn, st.WebSocketResponse{
 		Type: "lobby_left",
 	})
 }
 
-func HandleToggleReady(conn *websocket.Conn, playerID string, lobbyID string) {
-	toggledTo, err := ToggleReady(playerID, lobbyID)
+func HandleToggleReady(p *st.Player, lobbyID string) {
+	toggledTo, err := ToggleReady(p.PlayerID, lobbyID)
 	if err != nil {
-		utils.SendError(conn, err.Error())
+		utils.SendError(p.Conn, err.Error())
 		return
 	}
 
@@ -58,7 +56,7 @@ func HandleToggleReady(conn *websocket.Conn, playerID string, lobbyID string) {
 		responseType = "toggle_not_ready"
 	}
 
-	utils.SendResponse(conn, st.WebSocketResponse{
+	utils.SendResponse(p.Conn, st.WebSocketResponse{
 		Type: responseType,
 	})
 }

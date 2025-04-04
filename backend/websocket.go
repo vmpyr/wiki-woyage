@@ -1,8 +1,10 @@
 package main
 
 import (
+	"errors"
 	"log"
 	"net/http"
+	"time"
 
 	"wiki-woyage/game"
 	"wiki-woyage/lobby"
@@ -23,56 +25,112 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 		log.Println("WebSocket Upgrade Error:", err)
 		return
 	}
-	defer conn.Close()
+
+	var msg structs.WebSocketMessage
+	if err := conn.ReadJSON(&msg); err != nil || msg.PlayerID == "" {
+		log.Println("WebSocket Read Error:", err)
+		utils.SendError(conn, "Missing / invalid PlayerID")
+		conn.Close()
+		return
+	}
+
+	p, err := player.GetPlayer(msg.PlayerID)
+	if err != nil {
+		p, err = player.CreatePlayer(msg.PlayerID)
+		if err != nil {
+			log.Println("Player creation error:", err)
+			utils.SendError(conn, err.Error())
+			conn.Close()
+			return
+		}
+	}
+
+	p.PlayerStructMutex.Lock()
+	p.Conn = conn
+	p.LastActive = time.Now()
+	p.PlayerStructMutex.Unlock()
+
+	HandleMessages(p)
+}
+
+func HandleMessages(p *structs.Player) {
+	defer HandleDisconnect(p)
 
 	for {
 		var msg structs.WebSocketMessage
-		err := conn.ReadJSON(&msg)
-		if err != nil {
+		if err := p.Conn.ReadJSON(&msg); err != nil {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				log.Println("WebSocket closed unexpectedly:", err)
+				break
+			}
 			log.Println("WebSocket Read Error:", err)
-			break
+			continue
 		}
 
-		if msg.PlayerID != "" && !CheckPlayerExists(msg.PlayerID) {
-			utils.SendError(conn, "Player not found")
-			continue
-		} else if msg.LobbyID != "" && !CheckLobbyExists(msg.LobbyID) {
-			utils.SendError(conn, "Lobby not found")
+		if msg.LobbyID != "" && !CheckLobbyExists(msg.LobbyID) {
+			utils.SendError(p.Conn, "Lobby not found")
 			continue
 		} else if msg.GameID != "" && !CheckGameExists(msg.GameID) {
-			utils.SendError(conn, "Game not found")
+			utils.SendError(p.Conn, "Game not found")
 			continue
 		}
 
-		switch msg.Type {
-		case "create_player":
-			player.HandleCreatePlayer(conn, msg.PlayerName)
-		case "create_lobby":
-			lobby.HandleCreateLobby(conn, msg.PlayerID)
-		case "join_lobby":
-			lobby.HandleJoinLobby(conn, msg.PlayerID, msg.LobbyID)
-		case "leave_lobby":
-			lobby.HandleLeaveLobby(conn, msg.PlayerID, msg.LobbyID)
-		case "start_game":
-			game.HandleStartNewGame(conn, msg.PlayerID, msg.LobbyID, msg.GameSettings)
-		case "join_game":
-			game.HandleJoinGame(conn, msg.PlayerID, msg.GameID)
-		case "vote_to_end_game":
-			game.HandleVoteToEnd(conn, msg.PlayerID, msg.GameID)
-		case "toggle_ready":
-			lobby.HandleToggleReady(conn, msg.PlayerID, msg.LobbyID)
+		switch {
+		case msg.Type == "create_player":
+			player.HandleAddPlayerName(p, msg.PlayerName)
+		case msg.Type == "create_lobby":
+			lobby.HandleCreateLobby(p)
+
+		case utils.HasSuffix(msg.Type, "_lobby"):
+			if err := CheckEmptyIDRequest(msg.LobbyID, "LobbyID"); err != nil {
+				log.Println("LobbyID is empty")
+				utils.SendError(p.Conn, "LobbyID is empty")
+				continue
+			}
+			switch msg.Type {
+			case "join_lobby":
+				lobby.HandleJoinLobby(p, msg.LobbyID)
+			case "leave_lobby":
+				lobby.HandleLeaveLobby(p, msg.LobbyID)
+			case "toggle_ready_lobby":
+				lobby.HandleToggleReady(p, msg.LobbyID)
+			default:
+				log.Println("Unknown lobby message type:", msg.Type)
+			}
+
+		case utils.HasSuffix(msg.Type, "_game"):
+			if err := CheckEmptyIDRequest(msg.GameID, "GameID"); err != nil {
+				log.Println("GameID is empty")
+				utils.SendError(p.Conn, "GameID is empty")
+				continue
+			}
+			switch msg.Type {
+			case "start_game":
+				game.HandleStartNewGame(p, msg.LobbyID, msg.GameSettings)
+			case "join_game":
+				game.HandleJoinGame(p, msg.GameID)
+			case "vote_to_end_game":
+				game.HandleVoteToEnd(p, msg.GameID)
+			default:
+				log.Println("Unknown game message type:", msg.Type)
+			}
+
 		default:
 			log.Println("Unknown message type:", msg.Type)
 		}
 	}
 }
 
-func CheckPlayerExists(playerID string) bool {
-	if _, err := player.GetPlayer(playerID); err != nil {
-		log.Printf("Player %s not found", playerID)
-		return false
+func HandleDisconnect(p *structs.Player) {
+	log.Printf("Player %s disconnected, starting grace period...", p.PlayerID)
+	time.Sleep(300 * time.Second)
+
+	if time.Since(p.LastActive) > 300*time.Second {
+		log.Printf("Player %s did not reconnect, removing...", p.PlayerID)
+		player.DeletePlayer(p)
+		lobby.LeaveLobby(p, p.LobbyID, true)
+		game.LeaveGame(p, p.GameID, true)
 	}
-	return true
 }
 
 func CheckLobbyExists(lobbyID string) bool {
@@ -89,4 +147,11 @@ func CheckGameExists(gameID string) bool {
 		return false
 	}
 	return true
+}
+
+func CheckEmptyIDRequest(xID string, nameID string) error {
+	if xID == "" {
+		return errors.New(nameID + " is empty")
+	}
+	return nil
 }
