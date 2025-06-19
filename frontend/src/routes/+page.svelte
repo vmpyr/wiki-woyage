@@ -17,18 +17,20 @@
     <h1 class="mb-4 text-3xl font-bold">Welcome to WikiWoyage!</h1>
 
     <div class="mb-4">
-        <input
-            type="text"
-            id="playerName"
-            bind:value={playerName}
-            class="mt-2 w-64 rounded border border-gray-300 p-2"
-            placeholder="Enter username"
-        />
-        <button
-            class="mt-2 rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600"
-            on:click={createPlayer}
-        >
-            Let's go!
-        </button>
+        <form on:submit|preventDefault={createPlayer} class="flex flex-row items-center gap-2">
+            <input
+                type="text"
+                id="playerName"
+                bind:value={playerName}
+                class="mt-2 w-64 rounded border border-gray-300 p-2"
+                placeholder="Enter username"
+            />
+            <button
+                type="submit"
+                class="mt-2 rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600"
+            >
+                Let's go!
+            </button>
+        </form>
     </div>
 </main>

@@ -12,8 +12,11 @@ export function connectWebSocket() {
 }
 
 export function sendWebSocketMessage(type: string, data: object = {}) {
+    if (!localStorage.getItem('playerID')) {
+        localStorage.setItem('playerID', crypto.randomUUID());
+    }
     if (socket && socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify({ type, ...data }));
+        socket.send(JSON.stringify({ type, ...data, playerID: localStorage.getItem('playerID') }));
     } else {
         console.warn('WebSocket not connected');
     }

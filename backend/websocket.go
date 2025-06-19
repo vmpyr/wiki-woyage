@@ -50,7 +50,7 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	p.LastActive = time.Now()
 	p.PlayerStructMutex.Unlock()
 
-	HandleMessages(p)
+	go HandleMessages(p)
 }
 
 func HandleMessages(p *structs.Player) {
