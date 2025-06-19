@@ -47,8 +47,12 @@ func AddPlayerName(p *st.Player, playerName string) error {
 
 	playerMutex.Lock()
 	if _, ok := takenPlayerNames[playerName]; ok {
-		log.Printf("Player name %s already taken", playerName)
-		return errors.New("player name already taken")
+		if takenPlayerNames[playerName] == p.PlayerID {
+			log.Printf("Player name %s already set for player %s", playerName, p.PlayerID)
+		} else {
+			log.Printf("Player name %s already taken", playerName)
+			return errors.New("player name already taken")
+		}
 	}
 	delete(takenPlayerNames, p.PlayerName)
 	takenPlayerNames[playerName] = p.PlayerID
