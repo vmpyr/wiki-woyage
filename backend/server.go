@@ -5,15 +5,18 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 )
 
-// do later
-// const (
-// 	MAX_PLAYERS_PER_LOBBY = 8
-// 	MAX_LOBBIES           = 100
-// 	MAX_USERNAME_LENGTH   = 20
-// 	MIN_USERNAME_LENGTH   = 3
-// )
+// enforce later
+const (
+	MAX_PLAYERS_PER_LOBBY = 8
+	MAX_LOBBIES           = 100
+	MAX_USERNAME_LENGTH   = 20
+	MIN_USERNAME_LENGTH   = 3
+	LOBBY_TICKER_INTERVAL = 120
+	LOBBY_IDLE_TIMEOUT    = 360
+)
 
 var port int
 var listeningInterface string
@@ -26,6 +29,7 @@ func init() {
 
 func main() {
 	orchestrator := CreateOrchestrator()
+	orchestrator.StartLobbyCleanup(LOBBY_TICKER_INTERVAL*time.Second, LOBBY_IDLE_TIMEOUT*time.Second)
 
 	http.HandleFunc("/ws", orchestrator.ServeWS)
 

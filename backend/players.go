@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -44,6 +45,7 @@ func (l *Lobby) AddPlayerToLobby(player *Player) error {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 	l.players[player] = true
+	l.lastActive = time.Now()
 	player.lobby = l
 	return nil
 }
@@ -52,6 +54,7 @@ func (l *Lobby) RemovePlayerFromLobby(player *Player) {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 	delete(l.players, player)
+	l.lastActive = time.Now()
 	player.lobby = nil
 }
 
