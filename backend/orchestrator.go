@@ -85,4 +85,6 @@ func (o *Orchestrator) ServeWS(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Println("Player", player.username, "joined lobby", lobby.id)
+
+	go player.Run()
 }
