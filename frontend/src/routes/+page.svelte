@@ -1,5 +1,5 @@
 <script>
-	import { connectWebSocket, sendWebSocketMessage } from '$lib/websocket/';
+	import { connectWebSocket } from '$lib/websocket/';
 
 	let username = '';
 	let lobbyId = '';
