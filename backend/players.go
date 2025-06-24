@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"sync"
 	"time"
@@ -58,14 +59,33 @@ func (l *Lobby) RemovePlayerFromLobby(player *Player) {
 	player.lobby = nil
 }
 
-func (p *Player) Run() {
-	go p.ReadMessages()
+func (p *Player) SendEvent(eventType string, payload any) error {
+	msg := map[string]any{
+		"type":    eventType,
+		"payload": payload,
+	}
+	jsonMsg, err := json.Marshal(msg)
+	if err != nil {
+		log.Println("Failed to marshal send event message for", p.username, ":", err)
+		return err
+	}
+	select {
+	case p.send <- jsonMsg:
+		log.Println("Sent message to", p.username, ":", string(jsonMsg))
+	case <-p.done:
+		log.Println("Done channel closed for", p.username, ", cannot send message")
+	}
+	return nil
+}
+
+func (p *Player) Run(orchestrator *Orchestrator) {
+	go p.ReadMessages(orchestrator)
 	go p.WriteMessages()
 	<-p.done
 	p.Cleanup()
 }
 
-func (p *Player) ReadMessages() {
+func (p *Player) ReadMessages(orchestrator *Orchestrator) {
 	defer p.SignalDisconnect()
 	for {
 		_, message, err := p.connection.ReadMessage()
@@ -73,8 +93,24 @@ func (p *Player) ReadMessages() {
 			log.Println("Error reading message from", p.username, ":", err)
 			return
 		}
-		// TODO: Handle incoming messages
+
 		log.Println("Received message from", p.username, ":", string(message))
+
+		var event Event
+		if err := json.Unmarshal(message, &event); err != nil {
+			log.Println("Bad message from", p.username, ":", err)
+			continue
+		}
+
+		switch event.Handler {
+		case "lobby", "":
+			p.lobby.HandleEvent(event, p)
+			p.lobby.lastActive = time.Now()
+		case "orchestrator":
+			orchestrator.HandleEvent(event, p)
+		default:
+			log.Println("Unknown handler for event from", p.username, ":", event.Handler)
+		}
 	}
 }
 

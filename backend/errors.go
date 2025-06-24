@@ -5,5 +5,6 @@ import (
 )
 
 var (
-	ErrUsernameTaken = errors.New("username already taken")
+	ErrUsernameTaken    = errors.New("username already taken")
+	ErrConnectionClosed = errors.New("connection closed by client")
 )

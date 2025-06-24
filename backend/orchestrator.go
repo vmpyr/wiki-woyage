@@ -18,17 +18,23 @@ var (
 )
 
 type Orchestrator struct {
-	lobbies      LobbyList
-	eventHandler map[string]EventHandler
-	mutex        sync.RWMutex
+	lobbies       LobbyList
+	eventHandlers map[string]EventHandler
+	mutex         sync.RWMutex
 }
 
 func CreateOrchestrator() *Orchestrator {
 	o := &Orchestrator{
-		lobbies:      make(LobbyList),
-		eventHandler: make(map[string]EventHandler),
+		lobbies:       make(LobbyList),
+		eventHandlers: make(map[string]EventHandler),
+		mutex:         sync.RWMutex{},
 	}
+	o.SetupEventHandlers()
 	return o
+}
+
+func (o *Orchestrator) SetupEventHandlers() {
+	// events to be added
 }
 
 func (o *Orchestrator) ServeWS(w http.ResponseWriter, r *http.Request) {
@@ -85,8 +91,12 @@ func (o *Orchestrator) ServeWS(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Println("Player", player.username, "joined lobby", lobby.id)
+	_ = player.SendEvent("lobby_joined", map[string]string{
+		"lobbyID":  lobby.id,
+		"username": player.username,
+	})
 
-	go player.Run()
+	go player.Run(o)
 }
 
 func (o *Orchestrator) StartLobbyCleanup(interval, idleTimeout time.Duration) {
@@ -113,5 +123,15 @@ func (o *Orchestrator) CleanupLobbies(idleTimeout time.Duration) {
 			log.Println("Deleting idle empty lobby:", lobbyID)
 			delete(o.lobbies, lobbyID)
 		}
+	}
+}
+
+func (o *Orchestrator) HandleEvent(event Event, player *Player) {
+	if handler, ok := o.eventHandlers[event.Type]; ok {
+		if err := handler(event, player); err != nil {
+			log.Println("Error handling event:", err)
+		}
+	} else {
+		log.Println("No handler for event type:", event.Type)
 	}
 }
