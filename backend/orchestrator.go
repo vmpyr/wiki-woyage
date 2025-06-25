@@ -105,6 +105,20 @@ func (o *Orchestrator) ServeWS(w http.ResponseWriter, r *http.Request) {
 		"username": player.username,
 	})
 
+	lobby.mutex.RLock()
+	playersInLobby := make([]string, 0, len(lobby.players))
+	for _, p := range lobby.players {
+		if p.username != player.username {
+			playersInLobby = append(playersInLobby, p.username)
+		}
+	}
+	lobby.mutex.RUnlock()
+	_ = player.SendEvent("player_list", playersInLobby)
+
+	lobby.BroadcastEvent("new_player", map[string]string{
+		"username": player.username,
+	})
+
 	go player.Run(o)
 }
 

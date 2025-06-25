@@ -84,6 +84,12 @@ func (p *Player) SendEvent(eventType string, payload any) error {
 	return nil
 }
 
+func (l *Lobby) BroadcastEvent(eventType string, payload any) {
+	for _, player := range l.players {
+		player.SendEvent(eventType, payload)
+	}
+}
+
 func (p *Player) SignalDisconnect() {
 	p.close.Do(func() {
 		close(p.done)
