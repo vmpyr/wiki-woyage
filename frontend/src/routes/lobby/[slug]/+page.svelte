@@ -1,19 +1,21 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+    import { onMount } from 'svelte';
+    import { getClientInfo } from '$lib/lobby';
 
-	let username = '';
-	let lobbyID = '';
+    let username = '';
+    let lobbyID = '';
 
-	onMount(() => {
-		username = localStorage.getItem('username') || '';
-		lobbyID = localStorage.getItem('lobbyID') || '';
-
-		if (!username || !lobbyID) {
-			window.location.href = '/';
-		}
-	});
+    onMount(async () => {
+        const clientInfo = await getClientInfo();
+        if (!clientInfo) {
+            window.location.href = '/';
+            return;
+        }
+        username = clientInfo.username;
+        lobbyID = clientInfo.lobbyID;
+    });
 </script>
 
 <main class="flex h-screen flex-col items-center justify-center bg-gray-800 text-white">
-	<h1 class="mb-4 text-center text-3xl font-bold">Welcome {username} to Lobby {lobbyID}!</h1>
+    <h1 class="mb-4 text-center text-3xl font-bold">Welcome {username} to Lobby {lobbyID}!</h1>
 </main>
