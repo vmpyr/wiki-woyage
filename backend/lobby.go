@@ -37,7 +37,7 @@ func (o *Orchestrator) DeleteLobby(lobbyID string) {
 	o.mutex.Lock()
 	defer o.mutex.Unlock()
 	if lobby, ok := o.lobbies[lobbyID]; ok {
-		for player := range lobby.players {
+		for _, player := range lobby.players {
 			player.SignalDisconnect()
 			player.connection.Close()
 			close(player.send)

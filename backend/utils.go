@@ -23,7 +23,7 @@ func GenerateLobbyID(lobbies *LobbyList) string {
 }
 
 func CheckUniqueUsername(username string, players *PlayerList) bool {
-	for player := range *players {
+	for _, player := range *players {
 		if player.username == username {
 			return false
 		}

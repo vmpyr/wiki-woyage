@@ -16,6 +16,7 @@ const (
 	MIN_USERNAME_LENGTH   = 3
 	LOBBY_TICKER_INTERVAL = 120
 	LOBBY_IDLE_TIMEOUT    = 360
+	SVELTE_CLIENT_PORT    = 5174
 )
 
 var port int
@@ -32,6 +33,7 @@ func main() {
 	orchestrator.StartLobbyCleanup(LOBBY_TICKER_INTERVAL*time.Second, LOBBY_IDLE_TIMEOUT*time.Second)
 
 	http.HandleFunc("/ws", orchestrator.ServeWS)
+	http.HandleFunc("/api/clientinfo", orchestrator.HandleClientInfo)
 
 	listenOn := fmt.Sprintf("%s:%d", listeningInterface, port)
 	fmt.Printf("Server started on %s", listenOn)

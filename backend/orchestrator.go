@@ -19,6 +19,7 @@ var (
 
 type Orchestrator struct {
 	lobbies       LobbyList
+	players       PlayerList
 	eventHandlers map[string]EventHandler
 	mutex         sync.RWMutex
 }
@@ -26,6 +27,7 @@ type Orchestrator struct {
 func CreateOrchestrator() *Orchestrator {
 	o := &Orchestrator{
 		lobbies:       make(LobbyList),
+		players:       make(PlayerList),
 		eventHandlers: make(map[string]EventHandler),
 		mutex:         sync.RWMutex{},
 	}
@@ -40,6 +42,13 @@ func (o *Orchestrator) SetupEventHandlers() {
 func (o *Orchestrator) ServeWS(w http.ResponseWriter, r *http.Request) {
 	username := r.URL.Query().Get("username")
 	lobbyID := r.URL.Query().Get("lobbyID")
+	clientID := r.URL.Query().Get("clientID")
+
+	if clientID == "" {
+		log.Println("ClientID is required")
+		http.Error(w, "ClientID is required", http.StatusBadRequest)
+		return
+	}
 	if username == "" {
 		log.Println("Username is required")
 		http.Error(w, "Username is required", http.StatusBadRequest)
@@ -77,7 +86,7 @@ func (o *Orchestrator) ServeWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	player, err = lobby.CreatePlayer(conn, username)
+	player, err = lobby.CreatePlayer(conn, username, clientID, o)
 	if err != nil {
 		log.Println("Failed to create player:", err)
 		http.Error(w, "Failed to create player", http.StatusInternalServerError)
