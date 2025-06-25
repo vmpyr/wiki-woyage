@@ -1,5 +1,6 @@
 import { goto } from '$app/navigation';
 import { GOLANG_WS_URL } from '$lib';
+import { playerList } from '$lib/stores';
 
 let socket: WebSocket | null = null;
 
@@ -17,6 +18,20 @@ const clientSideHandlers: Record<string, MessageHandler> = {
             goto(`/lobby/${lobbyID}`);
         } else {
             console.warn('lobbyID is not a string:', lobbyID);
+        }
+    },
+
+    player_list: (msg) => {
+        const playerListResponse = msg.payload;
+        if (Array.isArray(playerListResponse)) {
+            playerList.set(playerListResponse);
+        }
+    },
+
+    new_player: (msg) => {
+        const newPlayer = msg.payload.username;
+        if (typeof newPlayer === 'string') {
+            playerList.update((list) => [...list, newPlayer]);
         }
     }
 };
