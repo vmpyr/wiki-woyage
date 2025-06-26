@@ -23,6 +23,7 @@ func SendHTTPResponse(w http.ResponseWriter, status int, data interface{}) {
 	}
 }
 
+// TODO: aaaaaah, I should've simply used the websocket connection for this. anywho, change later
 func (o *Orchestrator) HandleClientInfo(w http.ResponseWriter, r *http.Request) {
 	clientID := r.URL.Query().Get("clientID")
 	if clientID == "" {

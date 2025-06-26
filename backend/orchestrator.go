@@ -100,9 +100,9 @@ func (o *Orchestrator) ServeWS(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Println("Player", player.username, "joined lobby", lobby.id)
-	_ = player.SendEvent("lobby_joined", map[string]string{
-		"lobbyID":  lobby.id,
-		"username": player.username,
+	_ = player.SendWSResponse(ResponseLobbyJoined, LobbyJoinedResponse{
+		LobbyID:  lobby.id,
+		Username: player.username,
 	})
 
 	lobby.mutex.RLock()
@@ -113,10 +113,12 @@ func (o *Orchestrator) ServeWS(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	lobby.mutex.RUnlock()
-	_ = player.SendEvent("player_list", playersInLobby)
+	_ = player.SendWSResponse(ResponsePlayerList, PlayerListResponse{
+		Players: playersInLobby,
+	})
 
-	lobby.BroadcastEvent("new_player", map[string]string{
-		"username": player.username,
+	lobby.BroadcastResponse(ResponseNewPlayer, NewPlayerResponse{
+		Username: player.username,
 	})
 
 	go player.Run(o)
@@ -150,11 +152,5 @@ func (o *Orchestrator) CleanupLobbies(idleTimeout time.Duration) {
 }
 
 func (o *Orchestrator) HandleEvent(event Event, player *Player) {
-	if handler, ok := o.eventHandlers[event.Type]; ok {
-		if err := handler(event, player); err != nil {
-			log.Println("Error handling event:", err)
-		}
-	} else {
-		log.Println("No handler for event type:", event.Type)
-	}
+	HandleEventGeneric(event, player, o.eventHandlers)
 }

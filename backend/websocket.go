@@ -65,10 +65,10 @@ func (p *Player) WriteMessages() {
 	}
 }
 
-func (p *Player) SendEvent(eventType string, payload any) error {
-	msg := map[string]any{
-		"type":    eventType,
-		"payload": payload,
+func (p *Player) SendWSResponse(responseType string, response any) error {
+	msg := Response{
+		Type:     responseType,
+		Response: response,
 	}
 	jsonMsg, err := json.Marshal(msg)
 	if err != nil {
@@ -84,9 +84,9 @@ func (p *Player) SendEvent(eventType string, payload any) error {
 	return nil
 }
 
-func (l *Lobby) BroadcastEvent(eventType string, payload any) {
+func (l *Lobby) BroadcastResponse(responseType string, response any) {
 	for _, player := range l.players {
-		player.SendEvent(eventType, payload)
+		player.SendWSResponse(responseType, response)
 	}
 }
 

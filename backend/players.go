@@ -51,6 +51,9 @@ func (l *Lobby) AddPlayerToLobby(player *Player) error {
 	l.players[player.clientID] = player
 	l.lastActive = time.Now()
 	player.lobby = l
+	if l.admin == "" {
+		l.admin = player.clientID
+	}
 	return nil
 }
 
@@ -59,5 +62,15 @@ func (l *Lobby) RemovePlayerFromLobby(player *Player) {
 	defer l.mutex.Unlock()
 	delete(l.players, player.clientID)
 	l.lastActive = time.Now()
+	if l.admin == player.clientID {
+		if len(l.players) > 0 {
+			for newAdmin := range l.players {
+				l.admin = newAdmin
+				break
+			}
+		} else {
+			l.admin = ""
+		}
+	}
 	player.lobby = nil
 }

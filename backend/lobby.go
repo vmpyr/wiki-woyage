@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"sync"
 	"time"
 )
@@ -10,6 +9,7 @@ type LobbyList map[string]*Lobby
 type Lobby struct {
 	id            string
 	players       PlayerList
+	admin         string
 	eventHandlers map[string]EventHandler
 	mutex         sync.RWMutex
 
@@ -21,6 +21,7 @@ func (o *Orchestrator) NewLobby() (*Lobby, error) {
 	l := &Lobby{
 		id:            GenerateLobbyID(&o.lobbies),
 		players:       make(PlayerList),
+		admin:         "",
 		eventHandlers: make(map[string]EventHandler),
 		mutex:         sync.RWMutex{},
 		createdAt:     time.Now(),
@@ -47,15 +48,20 @@ func (o *Orchestrator) DeleteLobby(lobbyID string) {
 }
 
 func (l *Lobby) SetupEventHandlers() {
-	// events to be added
+	l.eventHandlers[EventAmIAdmin] = l.HandleAmIAdmin
 }
 
 func (l *Lobby) HandleEvent(event Event, player *Player) {
-	if handler, ok := l.eventHandlers[event.Type]; ok {
-		if err := handler(event, player); err != nil {
-			log.Println("Error handling event for", player.username, ":", err)
-		}
-	} else {
-		log.Println("No handler for event type", event.Type, "from", player.username)
+	HandleEventGeneric(event, player, l.eventHandlers)
+}
+
+func (l *Lobby) HandleAmIAdmin(payload any, player *Player) error {
+	isAdmin := false
+	if l.admin == player.clientID {
+		isAdmin = true
 	}
+	err := player.SendWSResponse(ResponseAmIAdmin, AmIAdminResponse{
+		IsAdmin: isAdmin,
+	})
+	return err
 }

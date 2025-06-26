@@ -1,6 +1,10 @@
 package main
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"log"
+	"reflect"
+)
 
 type Event struct {
 	Type    string          `json:"type"`
@@ -8,4 +12,39 @@ type Event struct {
 	Payload json.RawMessage `json:"payload"`
 }
 
-type EventHandler func(event Event, player *Player) error
+const (
+	EventAmIAdmin = "am_i_admin"
+)
+
+var EventTypeToPayloadType = map[string]reflect.Type{
+	EventAmIAdmin: reflect.TypeOf(AmIAdminPayload{}),
+}
+
+type EventHandler func(payload any, player *Player) error
+
+type AmIAdminPayload struct{}
+
+func HandleEventGeneric(
+	event Event,
+	player *Player,
+	eventHandlers map[string]EventHandler,
+) {
+	payloadType, ok := EventTypeToPayloadType[event.Type]
+	if !ok {
+		log.Println("No payload type for event type", event.Type)
+		return
+	}
+	payload := reflect.New(payloadType).Interface()
+	if err := json.Unmarshal(event.Payload, payload); err != nil {
+		log.Println("Failed to unmarshal payload for", player.username, ":", err)
+		return
+	}
+
+	if handler, ok := eventHandlers[event.Type]; ok {
+		if err := handler(payload, player); err != nil {
+			log.Println("Error handling event for", player.username, ":", err)
+		}
+	} else {
+		log.Println("No handler for event type", event.Type, "from", player.username)
+	}
+}
