@@ -22,7 +22,7 @@
     <div class="absolute top-1/2 left-8 w-60 -translate-y-1/2 rounded-lg bg-gray-700 p-4">
         <h2 class="mb-2 text-xl font-semibold">Players in Lobby:</h2>
         <ul>
-            {#each $playerList as player}
+            {#each $playerList as player (player)}
                 <li>{player} joined</li>
             {/each}
         </ul>
