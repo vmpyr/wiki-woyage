@@ -1,4 +1,5 @@
 import { GOLANG_HTTP_URL } from '$lib';
+import { socket } from '$lib/websocket';
 
 type ClientInfo = {
     username: string;
@@ -26,4 +27,11 @@ async function fetchClientInfo(): Promise<ClientInfo | null> {
 
 export async function getClientInfo(): Promise<ClientInfo | null> {
     return await fetchClientInfo();
+}
+
+// TODO: I am just testing, generally player will not explicitly request admin status (imagine though)
+export function requestAdminStatus() {
+    if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: 'am_i_admin', handler: 'lobby', payload: {} }));
+    }
 }

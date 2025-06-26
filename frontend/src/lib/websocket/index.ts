@@ -1,40 +1,8 @@
-import { goto } from '$app/navigation';
 import { GOLANG_WS_URL } from '$lib';
-import { playerList } from '$lib/stores';
+import type { Response } from './responsehandler';
+import { responseHandlers } from './responsehandler';
 
-let socket: WebSocket | null = null;
-
-type Message = {
-    type: string;
-    payload: Record<string, unknown>;
-};
-
-type MessageHandler = (msg: Message) => void;
-
-const clientSideHandlers: Record<string, MessageHandler> = {
-    lobby_joined: (msg) => {
-        const lobbyID = msg.payload.lobbyID;
-        if (typeof lobbyID === 'string') {
-            goto(`/lobby/${lobbyID}`);
-        } else {
-            console.warn('lobbyID is not a string:', lobbyID);
-        }
-    },
-
-    player_list: (msg) => {
-        const playerListResponse = msg.payload;
-        if (Array.isArray(playerListResponse)) {
-            playerList.set(playerListResponse);
-        }
-    },
-
-    new_player: (msg) => {
-        const newPlayer = msg.payload.username;
-        if (typeof newPlayer === 'string') {
-            playerList.update((list) => [...list, newPlayer]);
-        }
-    }
-};
+export let socket: WebSocket | null = null;
 
 export function connectWebSocket(username: string, lobbyID: string) {
     if (!socket || socket.readyState !== WebSocket.OPEN) {
@@ -50,10 +18,10 @@ export function connectWebSocket(username: string, lobbyID: string) {
 
         socket.onmessage = (event) => {
             try {
-                const msg: Message = JSON.parse(event.data);
-                const clientSideHandler = clientSideHandlers[msg.type];
-                if (clientSideHandler) {
-                    clientSideHandler(msg);
+                const msg: Response = JSON.parse(event.data);
+                const responseHandler = responseHandlers[msg.type];
+                if (responseHandler) {
+                    responseHandler(msg);
                 } else {
                     console.warn('No handler for message type:', msg.type, msg);
                 }
