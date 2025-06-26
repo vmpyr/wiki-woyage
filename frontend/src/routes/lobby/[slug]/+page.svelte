@@ -19,7 +19,7 @@
 
 <main class="flex h-screen flex-col items-center justify-center bg-gray-800 text-white">
     <h1 class="mb-4 text-center text-3xl font-bold">Welcome {username} to Lobby {lobbyID}!</h1>
-    <div class="absolute left-8 top-1/2 w-60 -translate-y-1/2 rounded-lg bg-gray-700 p-4">
+    <div class="absolute top-1/2 left-8 w-60 -translate-y-1/2 rounded-lg bg-gray-700 p-4">
         <h2 class="mb-2 text-xl font-semibold">Players in Lobby:</h2>
         <ul>
             {#each $playerList as player}
