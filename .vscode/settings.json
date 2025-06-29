@@ -1,0 +1,16 @@
+{
+    "editor.insertSpaces": true,
+    "editor.tabSize": 4,
+    "editor.detectIndentation": false,
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "[go]": {
+        "editor.insertSpaces": false,
+        "editor.defaultFormatter": "golang.go"
+    },
+    "go.formatTool": "gofmt",
+    "go.useLanguageServer": true,
+    "prettier.requireConfig": true,
+    "prettier.useEditorConfig": false,
+    "prettier.configPath": "./frontend/.prettierrc"
+} 
