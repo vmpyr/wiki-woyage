@@ -20,6 +20,13 @@ type Player struct {
 }
 
 func (l *Lobby) CreatePlayer(conn *websocket.Conn, username, clientID string, orchestrator *Orchestrator) (*Player, error) {
+	orchestrator.mutex.RLock()
+	if _, ok := orchestrator.players[clientID]; ok {
+		l.AddPlayerToLobby(orchestrator.players[clientID])
+		return orchestrator.players[clientID], nil
+	}
+	orchestrator.mutex.RUnlock()
+
 	if ok := CheckUniqueUsername(username, &l.players); !ok {
 		conn.Close()
 		return nil, ErrUsernameTaken
