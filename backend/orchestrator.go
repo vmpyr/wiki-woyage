@@ -89,13 +89,6 @@ func (o *Orchestrator) ServeWS(w http.ResponseWriter, r *http.Request) {
 	player, err = lobby.CreatePlayer(conn, username, clientID, o)
 	if err != nil {
 		log.Println("Failed to create player:", err)
-		http.Error(w, "Failed to create player", http.StatusInternalServerError)
-		return
-	}
-	err = lobby.AddPlayerToLobby(player)
-	if err != nil {
-		log.Println("Failed to add player to lobby:", err)
-		http.Error(w, "Failed to add player to lobby", http.StatusInternalServerError)
 		return
 	}
 
