@@ -21,14 +21,25 @@ export const responseHandlers: Record<string, ResponseHandler> = {
     player_list: (msg) => {
         const playerListResponse = msg.response.players;
         if (Array.isArray(playerListResponse)) {
-            playerList.set(playerListResponse);
+            const playerNamesWithStatus = playerListResponse.map((player: string) => [
+                player,
+                'joined'
+            ]);
+            playerList.set(playerNamesWithStatus);
         }
     },
 
     new_player: (msg) => {
         const newPlayer = msg.response.username;
         if (typeof newPlayer === 'string') {
-            playerList.update((list) => [...list, newPlayer]);
+            playerList.update((list) => [...list, [newPlayer, 'joined']]);
+        }
+    },
+
+    player_left: (msg) => {
+        const leavingPlayer = msg.response.username;
+        if (typeof leavingPlayer === 'string') {
+            playerList.update((list) => [...list, [leavingPlayer, 'left']]);
         }
     },
 

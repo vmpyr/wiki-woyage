@@ -1,5 +1,5 @@
 import { GOLANG_HTTP_URL } from '$lib';
-import { socket } from '$lib/websocket';
+import { socket, sendDisconnectEvent } from '$lib/websocket';
 
 type ClientInfo = {
     username: string;
@@ -15,6 +15,10 @@ async function fetchClientInfo(): Promise<ClientInfo | null> {
         );
         if (!res.ok) return null;
         const data = await res.json();
+        if (!data.username) {
+            return null;
+        }
+
         return {
             username: data.username,
             lobbyID: data.lobbyID
@@ -34,4 +38,9 @@ export function requestAdminStatus() {
     if (socket && socket.readyState === WebSocket.OPEN) {
         socket.send(JSON.stringify({ type: 'am_i_admin', handler: 'lobby', payload: {} }));
     }
+}
+
+export function requestDisconnection() {
+    sendDisconnectEvent(true);
+    window.location.href = '/';
 }

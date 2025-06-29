@@ -1,3 +1,3 @@
 import { writable } from 'svelte/store';
 
-export const playerList = writable<string[]>([]);
+export const playerList = writable<string[][]>([]);
