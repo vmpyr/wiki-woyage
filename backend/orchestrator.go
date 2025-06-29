@@ -36,7 +36,7 @@ func CreateOrchestrator() *Orchestrator {
 }
 
 func (o *Orchestrator) SetupEventHandlers() {
-	// events to be added
+	o.eventHandlers[EventDisconnect] = o.HandleDisconnect
 }
 
 func (o *Orchestrator) ServeWS(w http.ResponseWriter, r *http.Request) {
@@ -146,4 +146,10 @@ func (o *Orchestrator) CleanupLobbies(idleTimeout time.Duration) {
 
 func (o *Orchestrator) HandleEvent(event Event, player *Player) {
 	HandleEventGeneric(event, player, o.eventHandlers)
+}
+
+func (o *Orchestrator) HandleDisconnect(payload any, player *Player) error {
+	log.Println("Player wants to disconnect", player.username)
+	player.SignalDisconnect()
+	return nil
 }

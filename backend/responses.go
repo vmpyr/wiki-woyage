@@ -5,6 +5,7 @@ const (
 	ResponsePlayerList  = "player_list"
 	ResponseNewPlayer   = "new_player"
 	ResponseAmIAdmin    = "am_i_admin"
+	ResponsePlayerLeft  = "player_left"
 )
 
 type Response struct {
@@ -27,4 +28,8 @@ type NewPlayerResponse struct {
 
 type AmIAdminResponse struct {
 	IsAdmin bool `json:"isAdmin"`
+}
+
+type PlayerLeftResponse struct {
+	Username string `json:"username"`
 }

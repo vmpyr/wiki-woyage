@@ -13,16 +13,20 @@ type Event struct {
 }
 
 const (
-	EventAmIAdmin = "am_i_admin"
+	EventAmIAdmin   = "am_i_admin"
+	EventDisconnect = "disconnect"
 )
 
 var EventTypeToPayloadType = map[string]reflect.Type{
-	EventAmIAdmin: reflect.TypeOf(AmIAdminPayload{}),
+	EventAmIAdmin:   reflect.TypeOf(AmIAdminPayload{}),
+	EventDisconnect: reflect.TypeOf(DisconnectPayload{}),
 }
 
 type EventHandler func(payload any, player *Player) error
 
 type AmIAdminPayload struct{}
+
+type DisconnectPayload struct{}
 
 func HandleEventGeneric(
 	event Event,

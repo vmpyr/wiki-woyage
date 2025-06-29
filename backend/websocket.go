@@ -11,12 +11,12 @@ import (
 func (p *Player) Run(orchestrator *Orchestrator) {
 	go p.ReadMessages(orchestrator)
 	go p.WriteMessages()
+	go p.PingPong()
 	<-p.done
 	p.Cleanup(orchestrator)
 }
 
 func (p *Player) ReadMessages(orchestrator *Orchestrator) {
-	defer p.SignalDisconnect()
 	for {
 		_, message, err := p.connection.ReadMessage()
 		if err != nil {
@@ -45,7 +45,6 @@ func (p *Player) ReadMessages(orchestrator *Orchestrator) {
 }
 
 func (p *Player) WriteMessages() {
-	defer p.SignalDisconnect()
 	for {
 		select {
 		case message, ok := <-p.send:
@@ -104,4 +103,25 @@ func (p *Player) Cleanup(orchestrator *Orchestrator) {
 	orchestrator.mutex.Lock()
 	delete(orchestrator.players, p.clientID)
 	orchestrator.mutex.Unlock()
+	log.Println("Player", p.username, "cleanup completed")
+}
+
+func (p *Player) PingPong() {
+	defer p.SignalDisconnect()
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			err := p.connection.WriteMessage(websocket.PingMessage, nil)
+			if err != nil {
+				log.Println("Error sending ping to", p.username, ":", err)
+				return
+			}
+		case <-p.done:
+			log.Println("Done channel closed for", p.username, ", stopping ping")
+			return
+		}
+	}
 }

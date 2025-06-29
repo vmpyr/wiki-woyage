@@ -49,7 +49,7 @@ func (l *Lobby) CreatePlayer(conn *websocket.Conn, username, clientID string, or
 }
 
 func (l *Lobby) AddPlayerToLobby(player *Player) error {
-	if player.lobby != nil {
+	if player.lobby != nil && player.lobby != l {
 		player.lobby.RemovePlayerFromLobby(player)
 	}
 
@@ -67,6 +67,8 @@ func (l *Lobby) AddPlayerToLobby(player *Player) error {
 func (l *Lobby) RemovePlayerFromLobby(player *Player) {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
+
+	leavingUsername := player.username
 	delete(l.players, player.clientID)
 	l.lastActive = time.Now()
 	if l.admin == player.clientID {
@@ -80,4 +82,10 @@ func (l *Lobby) RemovePlayerFromLobby(player *Player) {
 		}
 	}
 	player.lobby = nil
+
+	if leavingUsername != "" {
+		l.BroadcastResponse(ResponsePlayerLeft, PlayerLeftResponse{
+			Username: leavingUsername,
+		})
+	}
 }

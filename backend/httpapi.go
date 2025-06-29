@@ -35,17 +35,17 @@ func (o *Orchestrator) HandleClientInfo(w http.ResponseWriter, r *http.Request) 
 	o.mutex.RLock()
 	player, ok := o.players[clientID]
 	o.mutex.RUnlock()
-	if !ok {
-		http.Error(w, "Player not found", http.StatusNotFound)
-		return
-	}
 
 	info := map[string]string{
-		"username": player.username,
+		"username": "",
 		"lobbyID":  "",
 	}
-	if player.lobby != nil {
-		info["lobbyID"] = player.lobby.id
+
+	if ok && player != nil {
+		info["username"] = player.username
+		if player.lobby != nil {
+			info["lobbyID"] = player.lobby.id
+		}
 	}
 
 	SendHTTPResponse(w, http.StatusOK, info)
